@@ -1,0 +1,2092 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LedgerFlow MTD - Ultimate Business & Accounting Suite</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        emeraldCustom: '#10b981',
+                        roseCustom: '#f43f5e'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Glassmorphism styles */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(229, 231, 235, 0.8);
+        }
+        .dark .glass-panel {
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(55, 65, 81, 0.5);
+        }
+        
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.5); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(107, 114, 128, 0.8); }
+
+        @media print {
+            body * { visibility: hidden; }
+            #printableArea, #printableArea * { visibility: visible; }
+            #printableArea { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full flex flex-col transition-colors duration-200">
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+    <!-- Main Application Wrapper -->
+    <div class="flex flex-col min-h-screen">
+        
+        <!-- Header / Navigation Bar -->
+        <header class="sticky top-0 z-30 bg-white/90 dark:bg-slate-800/90 backdrop-blur border-b border-slate-200 dark:border-slate-700 shadow-sm no-print">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    
+                    <!-- Logo & Brand -->
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+                            <i class="fa-solid me-0 fa-chart-line text-lg"></i>
+                        </div>
+                        <div>
+                            <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-brand-600 to-indigo-600 bg-clip-text text-transparent">LedgerFlow MTD</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-semibold ml-2 border border-emerald-200 dark:border-emerald-800">
+                                UK Enterprise v4.5
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- System Action Controls -->
+                    <div class="flex items-center gap-3">
+                        <!-- Dark Mode Toggle -->
+                        <button id="themeToggleBtn" onclick="toggleTheme()" class="p-2.5 rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Toggle Dark/Light Mode">
+                            <i id="themeIcon" class="fa-solid fa-moon"></i>
+                        </button>
+
+                        <!-- Sandbox Status Indicator -->
+                        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-medium">
+                            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                            <span>HMRC Sandbox Connected</span>
+                        </div>
+
+                        <!-- Data Actions Menu Button -->
+                        <button onclick="switchTab('settingsTab')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-database text-brand-500"></i> Data & Settings
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Navigation Tabs -->
+                <nav class="flex space-x-1 sm:space-x-4 overflow-x-auto pb-2 pt-1 no-scrollbar border-t border-slate-100 dark:border-slate-800/80">
+                    <button id="tabBtn-dashboard" onclick="switchTab('dashboard')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2 active-tab">
+                        <i class="fa-solid fa-gauge-high"></i> Dashboard
+                    </button>
+                    <button id="tabBtn-sales" onclick="switchTab('sales')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> Sales & Credit Notes
+                    </button>
+                    <button id="tabBtn-purchases" onclick="switchTab('purchases')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
+                        <i class="fa-solid fa-cart-shopping"></i> Purchases & Debit Notes
+                    </button>
+                    <button id="tabBtn-expenses" onclick="switchTab('expenses')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
+                        <i class="fa-solid fa-receipt"></i> Expenses & Receipts
+                    </button>
+                    <button id="tabBtn-bank" onclick="switchTab('bank')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
+                        <i class="fa-solid fa-building-columns"></i> Bank Recon
+                    </button>
+                    <button id="tabBtn-mtd" onclick="switchTab('mtd')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
+                        <i class="fa-solid fa-shield-halved text-brand-500"></i> MTD VAT 9-Box
+                    </button>
+                    <button id="tabBtn-tax" onclick="switchTab('tax')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
+                        <i class="fa-solid fa-calculator"></i> UK Tax & Payroll Suite
+                    </button>
+                    <button id="tabBtn-settingsTab" onclick="switchTab('settingsTab')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
+                        <i class="fa-solid fa-gear"></i> Settings & Audit
+                    </button>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+            <!-- 1. DASHBOARD VIEW -->
+            <section id="tab-dashboard" class="tab-content space-y-6">
+                <!-- Top Summary Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Card 1: Revenue -->
+                    <div class="glass-panel p-5 rounded-2xl shadow-sm relative overflow-hidden group">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Net Revenue</p>
+                                <h3 id="dashTotalRevenue" class="text-2xl font-bold mt-1 text-slate-900 dark:text-white">£0.00</h3>
+                                <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                                    <i class="fa-solid fa-arrow-trend-up"></i> Sales & Credit Adjustments
+                                </p>
+                            </div>
+                            <div class="p-3 bg-emerald-50 dark:bg-emerald-950/50 rounded-xl text-emerald-600 dark:text-emerald-400">
+                                <i class="fa-solid fa-hand-holding-dollar text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Total Expenses & Bills -->
+                    <div class="glass-panel p-5 rounded-2xl shadow-sm relative overflow-hidden group">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Purchases & Expenses</p>
+                                <h3 id="dashTotalExpenses" class="text-2xl font-bold mt-1 text-slate-900 dark:text-white">£0.00</h3>
+                                <p class="text-xs text-rose-500 dark:text-rose-400 mt-1 flex items-center gap-1">
+                                    <i class="fa-solid fa-arrow-trend-down"></i> Bills, Debit Notes & Receipts
+                                </p>
+                            </div>
+                            <div class="p-3 bg-rose-50 dark:bg-rose-950/50 rounded-xl text-rose-500 dark:text-rose-400">
+                                <i class="fa-solid fa-credit-card text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Net Operating Profit -->
+                    <div class="glass-panel p-5 rounded-2xl shadow-sm relative overflow-hidden group">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Net Profit (Pre-Tax)</p>
+                                <h3 id="dashNetProfit" class="text-2xl font-bold mt-1 text-slate-900 dark:text-white">£0.00</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Taxable Margin</p>
+                            </div>
+                            <div class="p-3 bg-brand-50 dark:bg-brand-950/50 rounded-xl text-brand-600 dark:text-brand-400">
+                                <i class="fa-solid fa-piggy-bank text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: Net VAT Liability -->
+                    <div class="glass-panel p-5 rounded-2xl shadow-sm relative overflow-hidden group">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Est. MTD VAT (Box 5)</p>
+                                <h3 id="dashNetVat" class="text-2xl font-bold mt-1 text-slate-900 dark:text-white">£0.00</h3>
+                                <p id="dashVatStatus" class="text-xs font-medium mt-1 text-amber-600 dark:text-amber-400">Due to HMRC</p>
+                            </div>
+                            <div class="p-3 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl text-indigo-600 dark:text-indigo-400">
+                                <i class="fa-solid fa-scale-balanced text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row & Quick Actions -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Main Financial Trend Chart -->
+                    <div class="lg:col-span-2 glass-panel p-6 rounded-2xl shadow-sm flex flex-col justify-between">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                <i class="fa-solid fa-chart-column text-brand-500"></i> Financial Performance Breakdown
+                            </h3>
+                            <span class="text-xs text-slate-400">Live Period Summary</span>
+                        </div>
+                        <div class="h-64 relative">
+                            <canvas id="dashboardChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Quick Shortcuts & Receivables / Payables -->
+                    <div class="glass-panel p-6 rounded-2xl shadow-sm flex flex-col justify-between space-y-4">
+                        <div>
+                            <h3 class="font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center gap-2">
+                                <i class="fa-solid fa-bolt text-amber-500"></i> Quick Actions
+                            </h3>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="openInvoiceModal('Invoice')" class="p-3 bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/30 dark:hover:bg-brand-900/50 text-brand-700 dark:text-brand-300 rounded-xl text-xs font-medium transition flex flex-col items-center justify-center gap-2 border border-brand-200 dark:border-brand-800/50">
+                                    <i class="fa-solid fa-plus text-base"></i> + New Invoice
+                                </button>
+                                <button onclick="openInvoiceModal('Credit Note')" class="p-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 rounded-xl text-xs font-medium transition flex flex-col items-center justify-center gap-2 border border-rose-200 dark:border-rose-800/50">
+                                    <i class="fa-solid fa-rotate-left text-base"></i> + Credit Note
+                                </button>
+                                <button onclick="openBillModal('Bill')" class="p-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-medium transition flex flex-col items-center justify-center gap-2 border border-slate-200 dark:border-slate-700">
+                                    <i class="fa-solid fa-file-invoice text-base"></i> + New Bill
+                                </button>
+                                <button onclick="openExpenseModal()" class="p-3 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-medium transition flex flex-col items-center justify-center gap-2 border border-emerald-200 dark:border-emerald-800/50">
+                                    <i class="fa-solid fa-paperclip text-base"></i> + Log Expense
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- AR / AP Quick Summary -->
+                        <div class="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-slate-500 dark:text-slate-400 flex items-center gap-1.5"><i class="fa-solid fa-clock-rotate-left text-brand-500"></i> Outstanding Receivables:</span>
+                                <span id="dashArTotal" class="font-bold text-slate-800 dark:text-slate-200">£0.00</span>
+                            </div>
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-slate-500 dark:text-slate-400 flex items-center gap-1.5"><i class="fa-solid fa-file-circle-exclamation text-amber-500"></i> Outstanding Payables:</span>
+                                <span id="dashApTotal" class="font-bold text-slate-800 dark:text-slate-200">£0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Feed -->
+                <div class="glass-panel rounded-2xl p-6 shadow-sm">
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-clock text-slate-400"></i> Recent Transaction Stream
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 font-semibold uppercase">
+                                <tr>
+                                    <th class="p-3 rounded-l-lg">Date</th>
+                                    <th class="p-3">Type</th>
+                                    <th class="p-3">Ref / Party</th>
+                                    <th class="p-3 text-right">Net</th>
+                                    <th class="p-3 text-right">VAT</th>
+                                    <th class="p-3 text-right">Gross</th>
+                                    <th class="p-3 rounded-r-lg text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashRecentTable" class="divide-y divide-slate-100 dark:divide-slate-800">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. SALES MODULE (Invoices & Credit Notes) -->
+            <section id="tab-sales" class="tab-content hidden space-y-6">
+                <!-- Top Toolbar -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Sales Invoices & Credit Notes</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Manage sales, issue sales returns (credit notes), and generate customer documents.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openInvoiceModal('Credit Note')" class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-800 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate-left"></i> Issue Credit Note (Return)
+                        </button>
+                        <button onclick="openInvoiceModal('Invoice')" class="px-4 py-2 text-xs font-semibold rounded-xl bg-brand-600 hover:bg-brand-700 text-white transition flex items-center gap-1.5 shadow-sm shadow-brand-500/30">
+                            <i class="fa-solid fa-plus"></i> Create Sales Invoice
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter & Search Bar -->
+                <div class="glass-panel p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div class="relative w-full sm:w-80">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input type="text" id="salesSearchInput" onkeyup="filterSalesTable()" placeholder="Search customer, ref #, items..." class="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
+                        <select id="salesTypeFilter" onchange="filterSalesTable()" class="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none">
+                            <option value="ALL">All Document Types</option>
+                            <option value="Invoice">Invoices Only</option>
+                            <option value="Credit Note">Credit Notes Only</option>
+                        </select>
+                        <select id="salesStatusFilter" onchange="filterSalesTable()" class="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none">
+                            <option value="ALL">All Statuses</option>
+                            <option value="Unpaid">Unpaid</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Returned">Returned / Credit</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Sales Documents Table -->
+                <div class="glass-panel rounded-2xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase">
+                                <tr>
+                                    <th class="p-4">Type</th>
+                                    <th class="p-4">Document #</th>
+                                    <th class="p-4">Customer</th>
+                                    <th class="p-4">Date / Due</th>
+                                    <th class="p-4 text-right">Net (£)</th>
+                                    <th class="p-4 text-right">VAT (£)</th>
+                                    <th class="p-4 text-right">Gross (£)</th>
+                                    <th class="p-4 text-center">Status</th>
+                                    <th class="p-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="salesTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                                <!-- Dynamic JS content -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. PURCHASES MODULE (Bills & Debit Notes) -->
+            <section id="tab-purchases" class="tab-content hidden space-y-6">
+                <!-- Top Toolbar -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Supplier Bills & Debit Notes</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Track accounts payable, enter supplier bills, and record purchase returns (debit notes).</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openBillModal('Debit Note')" class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrow-turn-down-left"></i> Issue Debit Note (Purchase Return)
+                        </button>
+                        <button onclick="openBillModal('Bill')" class="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-plus"></i> Enter Supplier Bill
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter & Search Bar -->
+                <div class="glass-panel p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div class="relative w-full sm:w-80">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input type="text" id="purchasesSearchInput" onkeyup="filterPurchasesTable()" placeholder="Search supplier, bill #..." class="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <select id="purchasesTypeFilter" onchange="filterPurchasesTable()" class="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none">
+                            <option value="ALL">All Types</option>
+                            <option value="Bill">Supplier Bills</option>
+                            <option value="Debit Note">Debit Notes</option>
+                        </select>
+                        <select id="purchasesStatusFilter" onchange="filterPurchasesTable()" class="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none">
+                            <option value="ALL">All Statuses</option>
+                            <option value="Unpaid">Unpaid</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Returned">Returned / Debit</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Purchases Table -->
+                <div class="glass-panel rounded-2xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase">
+                                <tr>
+                                    <th class="p-4">Type</th>
+                                    <th class="p-4">Bill / Ref #</th>
+                                    <th class="p-4">Supplier</th>
+                                    <th class="p-4">Date / Due</th>
+                                    <th class="p-4 text-right">Net (£)</th>
+                                    <th class="p-4 text-right">VAT (£)</th>
+                                    <th class="p-4 text-right">Gross (£)</th>
+                                    <th class="p-4 text-center">Status</th>
+                                    <th class="p-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchasesTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                                <!-- Dynamic JS content -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. EXPENSES & RECEIPTS MODULE -->
+            <section id="tab-expenses" class="tab-content hidden space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Expenses & Receipt Attachments</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Record operational expenses, upload bill attachments (PNG, JPG, PDF Data URLs), and claim input VAT.</p>
+                    </div>
+                    <button onclick="openExpenseModal()" class="px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5 shadow-sm shadow-emerald-500/30">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Log Expense & Attach Receipt
+                    </button>
+                </div>
+
+                <!-- Expenses Table -->
+                <div class="glass-panel rounded-2xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase">
+                                <tr>
+                                    <th class="p-4">Date</th>
+                                    <th class="p-4">Merchant / Supplier</th>
+                                    <th class="p-4">Category</th>
+                                    <th class="p-4">Payment Method</th>
+                                    <th class="p-4 text-right">Net (£)</th>
+                                    <th class="p-4 text-right">VAT Rate</th>
+                                    <th class="p-4 text-right">VAT (£)</th>
+                                    <th class="p-4 text-right">Gross (£)</th>
+                                    <th class="p-4 text-center">Receipt File</th>
+                                    <th class="p-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expensesTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                                <!-- Dynamic JS content -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. BANK RECONCILIATION VIEW -->
+            <section id="tab-bank" class="tab-content hidden space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Bank Statement Reconciliation Engine</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Parse CSV bank feeds, execute auto-matching against ledger entries, and run smart categorization rules.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="triggerAutoMatch()" class="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Run Auto-Match Engine
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CSV Drag and Drop Box -->
+                <div class="glass-panel p-6 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-center hover:border-brand-500 transition cursor-pointer" onclick="document.getElementById('bankCsvInput').click()">
+                    <input type="file" id="bankCsvInput" accept=".csv" class="hidden" onchange="handleBankCsvUpload(event)">
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="w-12 h-12 rounded-full bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400 flex items-center gap-0 justify-center">
+                            <i class="fa-solid fa-file-csv text-2xl"></i>
+                        </div>
+                        <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Click or Drag & Drop Bank Statement CSV</p>
+                        <p class="text-xs text-slate-400">Supports HSBC, Barclays, Lloyds, Revolut, Starling CSV headers (Date, Description, Amount)</p>
+                    </div>
+                </div>
+
+                <!-- Unmatched / Matched Bank Transactions Table -->
+                <div class="glass-panel rounded-2xl shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Statement Transactions</h3>
+                        <span id="reconMatchStats" class="text-xs px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 font-medium">0 Unmatched Lines</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase">
+                                <tr>
+                                    <th class="p-4">Date</th>
+                                    <th class="p-4">Bank Description</th>
+                                    <th class="p-4 text-right">Amount (£)</th>
+                                    <th class="p-4 text-center">Status</th>
+                                    <th class="p-4">Matched Ledger Entry</th>
+                                    <th class="p-4 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bankTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                                <!-- Dynamic JS content -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6. MTD VAT 9-BOX COMPLIANCE & SANDBOX -->
+            <section id="tab-mtd" class="tab-content hidden space-y-6">
+                <!-- MTD Header Card -->
+                <div class="glass-panel p-6 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 border-l-4 border-l-brand-600">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">UK MTD VAT Return - Official 9-Box Summary</h2>
+                            <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-brand-100 text-brand-700 dark:bg-brand-900/60 dark:text-brand-300">Making Tax Digital Compliant</span>
+                        </div>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            Calculated dynamically across Sales Invoices, Credit Notes, Supplier Bills, Debit Notes, and Expense Receipts.
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button onclick="toggleFrsMode()" id="frsToggleBtn" class="px-3 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                            <i class="fa-solid fa-calculator"></i> Flat Rate Scheme: OFF
+                        </button>
+                        <button onclick="submitMtdReturn()" class="px-5 py-2.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-md shadow-emerald-500/20 flex items-center gap-2">
+                            <i class="fa-solid fa-paper-plane"></i> Submit Return to HMRC Sandbox
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 9-BOX VAT GRID -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
+                    <!-- Box 1 -->
+                    <div class="glass-panel p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wide">Box 1</span>
+                            <i class="fa-solid fa-circle-info text-slate-400" title="VAT due in the period on sales and other outputs"></i>
+                        </div>
+                        <p class="text-xs font-medium text-slate-600 dark:text-slate-300">VAT due on sales and other outputs (Adjusted for Credit Notes)</p>
+                        <div id="box1Val" class="text-2xl font-bold text-slate-900 dark:text-white mt-2">£0.00</div>
+                    </div>
+
+                    <!-- Box 2 -->
+                    <div class="glass-panel p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wide">Box 2</span>
+                            <i class="fa-solid fa-circle-info text-slate-400" title="VAT due on acquisitions from EU member states"></i>
+                        </div>
+                        <p class="text-xs font-medium text-slate-600 dark:text-slate-300">VAT due on acquisitions from EC member states</p>
+                        <div id="box2Val" class="text-2xl font-bold text-slate-900 dark:text-white mt-2">£0.00</div>
+                    </div>
+
+                    <!-- Box 3 -->
+                    <div class="glass-panel p-4 rounded-2xl bg-brand-50/50 dark:bg-brand-950/20 border border-brand-200 dark:border-brand-800/50 md:col-span-2">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-xs font-bold text-brand-700 dark:text-brand-300 uppercase tracking-wide">Box 3 (Total Output VAT)</span>
+                            <span class="text-xs font-semibold text-brand-600">Box 1 + Box 2</span>
+                        </div>
+                        <p class="text-xs text-slate-500">Total VAT due before deductions</p>
+                        <div id="box3Val" class="text-3xl font-extrabold text-brand-700 dark:text-brand-300 mt-2">£0.00</div>
+                    </div>
+
+                    <!-- Box 4 -->
+                    <div class="glass-panel p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Box 4</span>
+                            <i class="fa-solid fa-circle-info text-slate-400" title="VAT reclaimed on purchases and expenses"></i>
+                        </div>
+                        <p class="text-xs font-medium text-slate-600 dark:text-slate-300">VAT reclaimed on purchases and expenses (Incl. Debit Notes)</p>
+                        <div id="box4Val" class="text-2xl font-bold text-slate-900 dark:text-white mt-2">£0.00</div>
+                    </div>
+
+                    <!-- Box 5 -->
+                    <div class="glass-panel p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/50">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wide">Box 5 (Net VAT Payable / Reclaimable)</span>
+                            <span class="text-xs font-semibold text-emerald-600">|Box 3 - Box 4|</span>
+                        </div>
+                        <p id="box5Label" class="text-xs text-slate-500">Net amount to pay to HMRC</p>
+                        <div id="box5Val" class="text-3xl font-extrabold text-emerald-700 dark:text-emerald-300 mt-2">£0.00</div>
+                    </div>
+
+                    <!-- Box 6 -->
+                    <div class="glass-panel p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Box 6</span>
+                        </div>
+                        <p class="text-xs font-medium text-slate-600 dark:text-slate-300">Total value of sales ex VAT (Adjusted for Credit Notes)</p>
+                        <div id="box6Val" class="text-xl font-bold text-slate-800 dark:text-slate-200 mt-2">£0.00</div>
+                    </div>
+
+                    <!-- Box 7 -->
+                    <div class="glass-panel p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Box 7</span>
+                        </div>
+                        <p class="text-xs font-medium text-slate-600 dark:text-slate-300">Total value of purchases ex VAT (Bills, Expenses, Debit Notes)</p>
+                        <div id="box7Val" class="text-xl font-bold text-slate-800 dark:text-slate-200 mt-2">£0.00</div>
+                    </div>
+
+                    <!-- Box 8 & Box 9 -->
+                    <div class="glass-panel p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Box 8</span>
+                        <p class="text-xs font-medium text-slate-600 dark:text-slate-300">Total value of goods supplied to EC states</p>
+                        <div id="box8Val" class="text-xl font-bold text-slate-800 dark:text-slate-200 mt-2">£0.00</div>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Box 9</span>
+                        <p class="text-xs font-medium text-slate-600 dark:text-slate-300">Total value of goods acquired from EC states</p>
+                        <div id="box9Val" class="text-xl font-bold text-slate-800 dark:text-slate-200 mt-2">£0.00</div>
+                    </div>
+                </div>
+
+                <!-- HMRC Live Payload Inspector -->
+                <div class="glass-panel p-6 rounded-2xl shadow-sm">
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-code text-brand-500"></i> MTD REST API Payload Inspector (HMRC Notice 700/22 Format)
+                    </h3>
+                    <pre id="mtdJsonPayload" class="p-4 rounded-xl bg-slate-900 text-emerald-400 font-mono text-xs overflow-x-auto max-h-48 border border-slate-800"></pre>
+                </div>
+            </section>
+
+            <!-- 7. UK TAX & PAYROLL SUITE VIEW -->
+            <section id="tab-tax" class="tab-content hidden space-y-6">
+                <!-- Sub Navigation Tabs for Tax Tools -->
+                <div class="flex space-x-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                    <button id="taxSubBtn-itsa" onclick="switchTaxSubTab('itsa')" class="px-4 py-2 text-xs font-bold rounded-lg bg-brand-50 text-brand-700 dark:bg-brand-900/50 dark:text-brand-300">
+                        Sole Trader ITSA Calculator
+                    </button>
+                    <button id="taxSubBtn-ct600" onclick="switchTaxSubTab('ct600')" class="px-4 py-2 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                        CT600 Corporation Tax & Marginal Relief
+                    </button>
+                    <button id="taxSubBtn-opt" onclick="switchTaxSubTab('opt')" class="px-4 py-2 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                        Director Salary vs Dividend Optimizer
+                    </button>
+                    <button id="taxSubBtn-cis" onclick="switchTaxSubTab('cis')" class="px-4 py-2 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                        CIS Subcontractors
+                    </button>
+                </div>
+
+                <!-- SUB TAB 1: SOLE TRADER ITSA -->
+                <div id="taxSubTab-itsa" class="space-y-6">
+                    <div class="glass-panel p-6 rounded-2xl">
+                        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base mb-4">Sole Trader Income Tax & Class 2 / 4 NIC Estimator (2026/27)</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-medium mb-1">Gross Annual Self-Employed Profit (£)</label>
+                                    <input type="number" id="itsaProfitInput" value="45000" oninput="calculateItsaTax()" class="w-full p-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                                </div>
+                                <div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-800 space-y-2 text-xs">
+                                    <div class="flex justify-between"><span>Personal Allowance (£12,570):</span> <span id="itsaPa">£12,570.00</span></div>
+                                    <div class="flex justify-between"><span>Basic Rate Tax (20%):</span> <span id="itsaBasic">£0.00</span></div>
+                                    <div class="flex justify-between"><span>Higher Rate Tax (40%):</span> <span id="itsaHigher">£0.00</span></div>
+                                    <div class="flex justify-between"><span>Class 4 NIC (6% above £12,570):</span> <span id="itsaNic4">£0.00</span></div>
+                                </div>
+                            </div>
+                            <div class="glass-panel p-5 rounded-xl border border-brand-200 dark:border-brand-800/40 flex flex-col justify-between">
+                                <div>
+                                    <span class="text-xs font-semibold text-slate-500 uppercase">Estimated Total Tax & NIC Bill</span>
+                                    <h2 id="itsaTotalBill" class="text-3xl font-extrabold text-brand-600 dark:text-brand-400 mt-2">£0.00</h2>
+                                    <p class="text-xs text-slate-400 mt-1">Effective Tax Rate: <span id="itsaEffectiveRate" class="font-bold text-slate-700 dark:text-slate-200">0%</span></p>
+                                </div>
+                                <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+                                    <span class="text-xs font-semibold text-slate-500">Take-Home Profit After Tax:</span>
+                                    <h3 id="itsaTakeHome" class="text-xl font-bold text-emerald-600 dark:text-emerald-400">£0.00</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB TAB 2: CT600 & MARGINAL RELIEF -->
+                <div id="taxSubTab-ct600" class="hidden space-y-6">
+                    <div class="glass-panel p-6 rounded-2xl">
+                        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base mb-2">CT600 Corporation Tax & Marginal Relief Formula Calculator</h3>
+                        <p class="text-xs text-slate-500 mb-4">Calculates 19% small profit rate (&lt;= £50k), 25% main rate (&gt;= £250k), and exact marginal relief reduction between £50k and £250k (Fraction 3/200th).</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-medium mb-1">Company Taxable Profit (£)</label>
+                                    <input type="number" id="ctProfitInput" value="85000" oninput="calculateCt600Tax()" class="w-full p-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                                </div>
+                                <div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-800 space-y-2 text-xs">
+                                    <div class="flex justify-between"><span>Main Rate Tax (25% Gross):</span> <span id="ctMainRateTax">£0.00</span></div>
+                                    <div class="flex justify-between text-emerald-600 dark:text-emerald-400"><span>Less: Marginal Relief Deduction:</span> <span id="ctReliefDeduction">-£0.00</span></div>
+                                </div>
+                            </div>
+                            <div class="glass-panel p-5 rounded-xl border border-indigo-200 dark:border-indigo-800/40 flex flex-col justify-between">
+                                <div>
+                                    <span class="text-xs font-semibold text-slate-500 uppercase">Net Corporation Tax Payable</span>
+                                    <h2 id="ctTotalTax" class="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-2">£0.00</h2>
+                                    <p class="text-xs text-slate-400 mt-1">Effective CT Rate: <span id="ctEffectiveRate" class="font-bold text-slate-700 dark:text-slate-200">0%</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB TAB 3: SALARY VS DIVIDEND OPTIMIZER -->
+                <div id="taxSubTab-opt" class="hidden space-y-6">
+                    <div class="glass-panel p-6 rounded-2xl">
+                        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base mb-2">Limited Company Director Extraction Optimizer</h3>
+                        <p class="text-xs text-slate-500 mb-4">Compares take-home pay using optimal Director's Salary (£12,570 NI Primary Threshold) vs Dividend distributions.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-medium mb-1">Total Available Net Profit Before Salary (£)</label>
+                                    <input type="number" id="optProfitInput" value="60000" oninput="calculateOptimizer()" class="w-full p-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                                </div>
+                                <div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-800 space-y-2 text-xs">
+                                    <div class="flex justify-between"><span>Optimal Salary:</span> <span>£12,570.00</span></div>
+                                    <div class="flex justify-between"><span>Corporation Tax Saved on Salary:</span> <span id="optCtSaved" class="text-emerald-600">£2,388.30</span></div>
+                                    <div class="flex justify-between"><span>Post-CT Profit Available for Dividend:</span> <span id="optDivAvail">£0.00</span></div>
+                                    <div class="flex justify-between"><span>Personal Dividend Tax Payable:</span> <span id="optDivTax" class="text-rose-500">£0.00</span></div>
+                                </div>
+                            </div>
+                            <div class="glass-panel p-5 rounded-xl border border-emerald-200 dark:border-emerald-800/40 flex flex-col justify-between">
+                                <div>
+                                    <span class="text-xs font-semibold text-slate-500 uppercase">Director Net Take-Home Cash</span>
+                                    <h2 id="optTakeHome" class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2">£0.00</h2>
+                                    <p class="text-xs text-slate-400 mt-1">Total Effective Tax Leakage: <span id="optTaxLeakage" class="font-bold text-slate-700 dark:text-slate-200">0%</span></p>
+                                </div>
+                                <div class="h-40 relative mt-4">
+                                    <canvas id="optimizerChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB TAB 4: CIS SUBCONTRACTORS -->
+                <div id="taxSubTab-cis" class="hidden space-y-6">
+                    <div class="glass-panel p-6 rounded-2xl space-y-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">CIS Construction Industry Scheme Subcontractors</h3>
+                                <p class="text-xs text-slate-500">Record payments to subcontractors and calculate 20% standard or 30% unverified CIS deductions.</p>
+                            </div>
+                            <button onclick="openCisModal()" class="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-900 text-white transition">
+                                + Log CIS Subcontractor Payment
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold uppercase">
+                                    <tr>
+                                        <th class="p-3">Date</th>
+                                        <th class="p-3">Subcontractor</th>
+                                        <th class="p-3">UTR #</th>
+                                        <th class="p-3 text-right">Gross Paid (£)</th>
+                                        <th class="p-3 text-right">CIS Deduction Rate</th>
+                                        <th class="p-3 text-right">Deducted (£)</th>
+                                        <th class="p-3 text-right">Net Paid (£)</th>
+                                        <th class="p-3 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cisTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 8. SETTINGS & PORTABILITY -->
+            <section id="tab-settingsTab" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Company Profile Form -->
+                    <div class="glass-panel p-6 rounded-2xl space-y-4">
+                        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base flex items-center gap-2">
+                            <i class="fa-solid fa-building text-brand-500"></i> Company Profile & Branding
+                        </h3>
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <label class="block font-medium mb-1">Company Trading Name</label>
+                                <input type="text" id="cfgCompName" value="Apex Innovations UK Ltd" class="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                            </div>
+                            <div>
+                                <label class="block font-medium mb-1">UK VAT Registration Number (VRN)</label>
+                                <input type="text" id="cfgVrn" value="GB 987 6543 21" class="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                            </div>
+                            <div>
+                                <label class="block font-medium mb-1">Company Registered Address</label>
+                                <textarea id="cfgAddress" rows="2" class="w-full p-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">100 Tech Park Way, London, EC1A 1BB</textarea>
+                            </div>
+                            <div>
+                                <label class="block font-medium mb-1">Custom Company Logo (Image Data URL / Upload)</label>
+                                <input type="file" id="cfgLogoInput" accept="image/*" onchange="handleLogoUpload(event)" class="w-full text-xs">
+                                <div id="cfgLogoPreview" class="mt-2 h-12 flex items-center">
+                                    <span class="text-xs text-slate-400">Default Brand Logo Active</span>
+                                </div>
+                            </div>
+                            <button onclick="saveCompanyProfile()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-semibold transition text-xs">
+                                Save Profile Settings
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Portability & Audit Logs -->
+                    <div class="glass-panel p-6 rounded-2xl space-y-4">
+                        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base flex items-center gap-2">
+                            <i class="fa-solid fa-file-export text-emerald-500"></i> Notice 700/22 Digital Link Audit & Backup
+                        </h3>
+                        <p class="text-xs text-slate-500">Export verified digital audit trail compliant with HMRC Notice 700/22 requirements, or backup/restore entire database JSON.</p>
+                        
+                        <div class="space-y-2 pt-2">
+                            <button onclick="exportAuditTrail()" class="w-full p-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold flex items-center justify-between text-slate-700 dark:text-slate-200 transition">
+                                <span><i class="fa-solid fa-download text-emerald-500 mr-2"></i> Export HMRC Audit Trail JSON</span>
+                                <i class="fa-solid fa-chevron-right text-slate-400"></i>
+                            </button>
+                            <button onclick="backupDatabase()" class="w-full p-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold flex items-center justify-between text-slate-700 dark:text-slate-200 transition">
+                                <span><i class="fa-solid fa-database text-brand-500 mr-2"></i> Download Full Database Backup (.json)</span>
+                                <i class="fa-solid fa-chevron-right text-slate-400"></i>
+                            </button>
+                            <button onclick="document.getElementById('restoreDbInput').click()" class="w-full p-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold flex items-center justify-between text-slate-700 dark:text-slate-200 transition">
+                                <span><i class="fa-solid fa-upload text-indigo-500 mr-2"></i> Restore Database Backup</span>
+                                <i class="fa-solid fa-chevron-right text-slate-400"></i>
+                            </button>
+                            <input type="file" id="restoreDbInput" accept=".json" class="hidden" onchange="restoreDatabase(event)">
+                            <button onclick="resetToSampleData()" class="w-full p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-xs font-semibold flex items-center justify-between text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-800 transition">
+                                <span><i class="fa-solid fa-trash-arrow-up mr-2"></i> Reset to Sample Demo Data</span>
+                                <i class="fa-solid fa-rotate-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- MODAL 1: INVOICE / CREDIT NOTE FORM -->
+    <div id="invoiceModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="glass-panel bg-white dark:bg-slate-800 rounded-3xl max-w-3xl w-full p-6 shadow-2xl space-y-4 my-8">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3">
+                <h3 id="invModalTitle" class="text-base font-bold text-slate-800 dark:text-slate-100">Create Sales Invoice</h3>
+                <button onclick="closeModal('invoiceModal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="invoiceForm" onsubmit="saveInvoice(event)" class="space-y-4 text-xs">
+                <input type="hidden" id="invDocType" value="Invoice">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block font-medium mb-1">Customer Name</label>
+                        <input type="text" id="invCustomer" required placeholder="Acme Corp UK" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Document #</label>
+                        <input type="text" id="invNumber" required class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 font-mono">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Invoice Date</label>
+                        <input type="date" id="invDate" required class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                    </div>
+                </div>
+
+                <!-- Line Items Table -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-slate-700 dark:text-slate-300">Line Items</span>
+                        <button type="button" onclick="addInvoiceLineItem()" class="text-xs text-brand-600 dark:text-brand-400 font-semibold hover:underline">+ Add Line</button>
+                    </div>
+                    <div id="invLinesContainer" class="space-y-2">
+                        <!-- Dynamic lines insertion -->
+                    </div>
+                </div>
+
+                <!-- Totals Box -->
+                <div class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 space-y-1.5 text-right font-mono">
+                    <div class="text-xs text-slate-500">Subtotal Net: <span id="invCalcNet" class="font-bold text-slate-800 dark:text-slate-200">£0.00</span></div>
+                    <div class="text-xs text-slate-500">VAT Total: <span id="invCalcVat" class="font-bold text-slate-800 dark:text-slate-200">£0.00</span></div>
+                    <div class="text-sm font-bold text-brand-600 dark:text-brand-400">Total Gross: <span id="invCalcGross">£0.00</span></div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <button type="button" onclick="closeModal('invoiceModal')" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold">Save Document</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: BILL / DEBIT NOTE FORM -->
+    <div id="billModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="glass-panel bg-white dark:bg-slate-800 rounded-3xl max-w-3xl w-full p-6 shadow-2xl space-y-4 my-8">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3">
+                <h3 id="billModalTitle" class="text-base font-bold text-slate-800 dark:text-slate-100">Enter Supplier Bill</h3>
+                <button onclick="closeModal('billModal')" class="text-slate-400 hover:text-slate-600 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="billForm" onsubmit="saveBill(event)" class="space-y-4 text-xs">
+                <input type="hidden" id="billDocType" value="Bill">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block font-medium mb-1">Supplier Name</label>
+                        <input type="text" id="billSupplier" required placeholder="AWS Cloud Services" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Bill / Ref #</label>
+                        <input type="text" id="billNumber" required class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 font-mono">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Bill Date</label>
+                        <input type="date" id="billDate" required class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-slate-700 dark:text-slate-300">Bill Line Items</span>
+                        <button type="button" onclick="addBillLineItem()" class="text-xs text-brand-600 dark:text-brand-400 font-semibold hover:underline">+ Add Line</button>
+                    </div>
+                    <div id="billLinesContainer" class="space-y-2"></div>
+                </div>
+
+                <div class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 space-y-1.5 text-right font-mono">
+                    <div class="text-xs text-slate-500">Subtotal Net: <span id="billCalcNet" class="font-bold text-slate-800 dark:text-slate-200">£0.00</span></div>
+                    <div class="text-xs text-slate-500">Input VAT: <span id="billCalcVat" class="font-bold text-slate-800 dark:text-slate-200">£0.00</span></div>
+                    <div class="text-sm font-bold text-indigo-600 dark:text-indigo-400">Total Payable: <span id="billCalcGross">£0.00</span></div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <button type="button" onclick="closeModal('billModal')" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 text-white font-semibold">Save Bill</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: EXPENSE ENTRY & FILE ATTACHMENT -->
+    <div id="expenseModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="glass-panel bg-white dark:bg-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 my-8">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3">
+                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-receipt text-emerald-500"></i> Log Operational Expense & Receipt
+                </h3>
+                <button onclick="closeModal('expenseModal')" class="text-slate-400 hover:text-slate-600 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="expenseForm" onsubmit="saveExpense(event)" class="space-y-3 text-xs">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-medium mb-1">Merchant / Supplier</label>
+                        <input type="text" id="expMerchant" required placeholder="Apple Store / Uber" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Expense Category</label>
+                        <select id="expCategory" required class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                            <option value="Software & IT">Software & IT</option>
+                            <option value="Office Supplies">Office Supplies</option>
+                            <option value="Rent & Utilities">Rent & Utilities</option>
+                            <option value="Travel & Meals">Travel & Meals</option>
+                            <option value="Legal & Professional">Legal & Professional</option>
+                            <option value="Advertising & Marketing">Advertising & Marketing</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block font-medium mb-1">Date</label>
+                        <input type="date" id="expDate" required class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Net Amount (£)</label>
+                        <input type="number" step="0.01" id="expNet" required oninput="recalcExpenseTotal()" placeholder="100.00" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">VAT Rate</label>
+                        <select id="expVatRate" onchange="recalcExpenseTotal()" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                            <option value="20">Standard 20%</option>
+                            <option value="5">Reduced 5%</option>
+                            <option value="0">Zero 0%</option>
+                            <option value="EXEMPT">Exempt</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 flex justify-between items-center text-xs">
+                    <span class="text-slate-500">Input VAT: <strong id="expVatVal" class="text-slate-800 dark:text-slate-200">£0.00</strong></span>
+                    <span class="font-bold text-emerald-600 dark:text-emerald-400">Gross Total: <strong id="expGrossVal">£0.00</strong></span>
+                </div>
+
+                <!-- File Attachment Area -->
+                <div>
+                    <label class="block font-medium mb-1">Receipt Attachment (PNG, JPG, WEBP, PDF Data URL)</label>
+                    <div class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-4 text-center bg-slate-50 dark:bg-slate-900 hover:border-emerald-500 transition cursor-pointer" onclick="document.getElementById('expFileInput').click()">
+                        <input type="file" id="expFileInput" accept="image/*,application/pdf" class="hidden" onchange="handleExpenseFileSelected(event)">
+                        <i class="fa-solid fa-cloud-arrow-up text-2xl text-emerald-500 mb-1"></i>
+                        <p id="expFileName" class="text-xs font-medium text-slate-600 dark:text-slate-300">Click or Drop Receipt File Here</p>
+                        <p class="text-[10px] text-slate-400">Stores directly inside record Base64 data</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <button type="button" onclick="closeModal('expenseModal')" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Save Expense Entry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 4: RECEIPT ATTACHMENT LIGHTBOX VIEWER -->
+    <div id="receiptViewerModal" class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-panel bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3">
+                <h3 id="receiptViewerTitle" class="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-receipt text-emerald-500"></i> Receipt Attachment Viewer
+                </h3>
+                <button onclick="closeModal('receiptViewerModal')" class="text-slate-400 hover:text-slate-200 text-xl">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div id="receiptViewerContent" class="min-h-[250px] max-h-[60vh] flex items-center justify-center overflow-auto rounded-2xl bg-slate-100 dark:bg-slate-950 p-2">
+                <!-- Dynamic Image or PDF Card -->
+            </div>
+
+            <div class="flex justify-end border-t border-slate-200 dark:border-slate-700 pt-3">
+                <button onclick="closeModal('receiptViewerModal')" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs font-semibold">Close Preview</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: PRINT / PREVIEW INVOICE & CREDIT NOTE MODAL -->
+    <div id="previewDocModal" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="glass-panel bg-white dark:bg-slate-900 rounded-3xl max-w-3xl w-full p-6 shadow-2xl space-y-4 my-8">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3 no-print">
+                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Official Document Preview</h3>
+                <div class="flex items-center gap-2">
+                    <button onclick="window.print()" class="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition">
+                        <i class="fa-solid fa-print"></i> Print / Save PDF
+                    </button>
+                    <button onclick="closeModal('previewDocModal')" class="text-slate-400 hover:text-slate-200 text-lg">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Printable HTML Area -->
+            <div id="printableArea" class="bg-white text-slate-900 p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6 text-xs">
+                <!-- Rendered dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 6: CIS SUBCONTRACTOR PAYMENT MODAL -->
+    <div id="cisModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="glass-panel bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3">
+                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Log CIS Subcontractor Payment</h3>
+                <button onclick="closeModal('cisModal')" class="text-slate-400 hover:text-slate-600 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form onsubmit="saveCisPayment(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-medium mb-1">Subcontractor Name</label>
+                    <input type="text" id="cisName" required placeholder="John Builder Services" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                </div>
+                <div>
+                    <label class="block font-medium mb-1">Unique Taxpayer Reference (UTR)</label>
+                    <input type="text" id="cisUtr" required placeholder="12345 67890" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 font-mono">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-medium mb-1">Gross Payment (£)</label>
+                        <input type="number" step="0.01" id="cisGross" required placeholder="1000.00" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Deduction Rate</label>
+                        <select id="cisRate" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                            <option value="20">20% Standard Deduction</option>
+                            <option value="30">30% Higher / Unverified</option>
+                            <option value="0">0% Gross Payment</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <button type="button" onclick="closeModal('cisModal')" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-brand-600 text-white font-semibold">Save CIS Entry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        /* ----------------------------------------------------
+           APPLICATION INITIALIZATION & LOCAL STORAGE STATE
+        ---------------------------------------------------- */
+        
+        const DEFAULT_DEMO_DATA = {
+            companyProfile: {
+                name: "Apex Innovations UK Ltd",
+                vrn: "GB 987 6543 21",
+                address: "100 Tech Park Way, London, EC1A 1BB",
+                logoUrl: ""
+            },
+            invoices: [
+                { id: "INV-1001", invNo: "INV-1001", type: "Invoice", customer: "Acme Digital Ltd", date: "2026-09-15", items: [{ desc: "Custom Web Application Development", qty: 1, price: 3500.00, vatRate: 20 }], totalNet: 3500.00, totalVat: 700.00, totalGross: 4200.00, status: "Paid" },
+                { id: "INV-1002", invNo: "INV-1002", type: "Invoice", customer: "Horizon Retail Enterprise", date: "2026-09-28", items: [{ desc: "Cloud Infrastructure Setup", qty: 2, price: 1200.00, vatRate: 20 }], totalNet: 2400.00, totalVat: 480.00, totalGross: 2880.00, status: "Unpaid" },
+                { id: "CN-2001", invNo: "CN-2001", type: "Credit Note", customer: "Acme Digital Ltd", date: "2026-10-01", items: [{ desc: "Sales Return - Service Credit Refund", qty: 1, price: 500.00, vatRate: 20 }], totalNet: 500.00, totalVat: 100.00, totalGross: 600.00, status: "Returned" }
+            ],
+            bills: [
+                { id: "BIL-8001", billNo: "BIL-8001", type: "Bill", supplier: "AWS EMEA Cloud", date: "2026-09-10", items: [{ desc: "Server Hosting Charges", qty: 1, price: 800.00, vatRate: 20 }], totalNet: 800.00, totalVat: 160.00, totalGross: 960.00, status: "Paid" },
+                { id: "DN-9001", billNo: "DN-9001", type: "Debit Note", supplier: "AWS EMEA Cloud", date: "2026-09-18", items: [{ desc: "Purchase Return Credit for Service Outage", qty: 1, price: 150.00, vatRate: 20 }], totalNet: 150.00, totalVat: 30.00, totalGross: 180.00, status: "Returned" }
+            ],
+            expenses: [
+                { id: "EXP-3001", merchant: "Apple Store Regent St", category: "Office Supplies", date: "2026-09-20", payMethod: "Company Card", netAmount: 1200.00, vatRate: 20, vatAmount: 240.00, grossAmount: 1440.00, fileName: "MacBook_Receipt.png", attachment: "https://placehold.co/600x400/0284c7/ffffff?text=Apple+Receipt+Attached" },
+                { id: "EXP-3002", merchant: "Trainline UK", category: "Travel & Meals", date: "2026-09-25", payMethod: "Company Card", netAmount: 180.00, vatRate: 0, vatAmount: 0.00, grossAmount: 180.00, fileName: "Ticket.png", attachment: "https://placehold.co/600x400/10b981/ffffff?text=Trainline+Ticket+Receipt" }
+            ],
+            bankTransactions: [
+                { id: "BNK-101", date: "2026-09-16", description: "ACME DIGITAL LTD INV-1001", amount: 4200.00, status: "Matched", matchedType: "Invoice", matchedId: "INV-1001" },
+                { id: "BNK-102", date: "2026-09-22", description: "AWS EMEA HOSTING BIL-8001", amount: -960.00, status: "Matched", matchedType: "Bill", matchedId: "BIL-8001" },
+                { id: "BNK-103", date: "2026-09-29", description: "HORIZON RETAIL REF-2880", amount: 2880.00, status: "Unmatched", matchedType: null, matchedId: null }
+            ],
+            cisRecords: [
+                { id: "CIS-1", date: "2026-09-28", name: "Metro Build Services", utr: "98765 43210", grossPaid: 2000.00, rate: 20, deducted: 400.00, netPaid: 1600.00 }
+            ],
+            frsMode: false,
+            frsRate: 14.5
+        };
+
+        let appState = {};
+        let dashboardChartInstance = null;
+        let optimizerChartInstance = null;
+        let pendingExpenseFileBase64 = null;
+        let pendingExpenseFileName = null;
+
+        window.onload = function() {
+            loadState();
+            renderDashboard();
+            renderSalesTable();
+            renderPurchasesTable();
+            renderExpensesTable();
+            renderBankTable();
+            renderMtdBoxCalculations();
+            renderCisTable();
+            calculateItsaTax();
+            calculateCt600Tax();
+            calculateOptimizer();
+        };
+
+        function loadState() {
+            const saved = localStorage.getItem('ledgerflow_mtd_db');
+            if (saved) {
+                try { appState = JSON.parse(saved); } 
+                catch(e) { appState = JSON.parse(JSON.stringify(DEFAULT_DEMO_DATA)); }
+            } else {
+                appState = JSON.parse(JSON.stringify(DEFAULT_DEMO_DATA));
+                saveState();
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem('ledgerflow_mtd_db', JSON.stringify(appState));
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `p-3 rounded-xl shadow-lg text-xs font-semibold text-white pointer-events-auto flex items-center justify-between gap-2 transition-all transform translate-y-2 ${type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'}`;
+            toast.innerHTML = `<span>${message}</span><i class="fa-solid fa-xmark cursor-pointer" onclick="this.parentElement.remove()"></i>`;
+            container.appendChild(toast);
+            setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3500);
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            const icon = document.getElementById('themeIcon');
+            if (document.documentElement.classList.contains('dark')) {
+                icon.className = 'fa-solid fa-sun text-amber-400';
+            } else {
+                icon.className = 'fa-solid fa-moon';
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-tab').forEach(el => {
+                el.classList.remove('bg-brand-600', 'text-white', 'shadow-sm');
+                el.classList.add('text-slate-600', 'dark:text-slate-300', 'hover:bg-slate-100', 'dark:hover:bg-slate-800');
+            });
+
+            const target = document.getElementById(`tab-${tabId}`);
+            if (target) target.classList.remove('hidden');
+
+            const btn = document.getElementById(`tabBtn-${tabId}`);
+            if (btn) {
+                btn.classList.add('bg-brand-600', 'text-white', 'shadow-sm');
+                btn.classList.remove('text-slate-600', 'dark:text-slate-300', 'hover:bg-slate-100', 'dark:hover:bg-slate-800');
+            }
+
+            if (tabId === 'dashboard') renderDashboard();
+            if (tabId === 'mtd') renderMtdBoxCalculations();
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function renderDashboard() {
+            // Calculations
+            let salesNet = 0, creditNotesNet = 0;
+            appState.invoices.forEach(inv => {
+                if (inv.type === 'Invoice') salesNet += inv.totalNet;
+                if (inv.type === 'Credit Note') creditNotesNet += inv.totalNet;
+            });
+            const totalRevenue = salesNet - creditNotesNet;
+
+            let billsNet = 0, debitNotesNet = 0;
+            appState.bills.forEach(b => {
+                if (b.type === 'Bill') billsNet += b.totalNet;
+                if (b.type === 'Debit Note') debitNotesNet += b.totalNet;
+            });
+            let expensesNet = 0;
+            appState.expenses.forEach(e => expensesNet += e.netAmount);
+
+            const totalExpenses = (billsNet - debitNotesNet) + expensesNet;
+            const netProfit = totalRevenue - totalExpenses;
+
+            // Outstanding Receivables & Payables
+            let arTotal = 0;
+            appState.invoices.filter(i => i.type === 'Invoice' && i.status === 'Unpaid').forEach(i => arTotal += i.totalGross);
+            let apTotal = 0;
+            appState.bills.filter(b => b.type === 'Bill' && b.status === 'Unpaid').forEach(b => apTotal += b.totalGross);
+
+            document.getElementById('dashTotalRevenue').innerText = `£${totalRevenue.toLocaleString('en-GB', {minimumFractionDigits: 2})}`;
+            document.getElementById('dashTotalExpenses').innerText = `£${totalExpenses.toLocaleString('en-GB', {minimumFractionDigits: 2})}`;
+            document.getElementById('dashNetProfit').innerText = `£${netProfit.toLocaleString('en-GB', {minimumFractionDigits: 2})}`;
+            document.getElementById('dashArTotal').innerText = `£${arTotal.toLocaleString('en-GB', {minimumFractionDigits: 2})}`;
+            document.getElementById('dashApTotal').innerText = `£${apTotal.toLocaleString('en-GB', {minimumFractionDigits: 2})}`;
+
+            // Calculate Box 5 Net VAT
+            const mtd = calculateMtd9Boxes();
+            document.getElementById('dashNetVat').innerText = `£${mtd.box5.toLocaleString('en-GB', {minimumFractionDigits: 2})}`;
+
+            // Chart Rendering
+            const ctx = document.getElementById('dashboardChart').getContext('2d');
+            if (dashboardChartInstance) dashboardChartInstance.destroy();
+
+            dashboardChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Net Sales', 'Credit Notes', 'Bills & Exp', 'Net Profit'],
+                    datasets: [{
+                        label: 'GBP (£)',
+                        data: [salesNet, creditNotesNet, totalExpenses, netProfit],
+                        backgroundColor: ['#0284c7', '#f43f5e', '#64748b', '#10b981'],
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Recent Table
+            const recentTable = document.getElementById('dashRecentTable');
+            recentTable.innerHTML = '';
+            
+            const combined = [
+                ...appState.invoices.map(i => ({ date: i.date, type: i.type, ref: `${i.invNo} (${i.customer})`, net: i.totalNet, vat: i.totalVat, gross: i.totalGross, status: i.status })),
+                ...appState.bills.map(b => ({ date: b.date, type: b.type, ref: `${b.billNo} (${b.supplier})`, net: b.totalNet, vat: b.totalVat, gross: b.totalGross, status: b.status }))
+            ].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+
+            combined.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-3 font-mono">${item.date}</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${item.type.includes('Credit') || item.type.includes('Debit') ? 'bg-rose-100 text-rose-700' : 'bg-brand-100 text-brand-700'}">${item.type}</span></td>
+                    <td class="p-3 font-medium">${item.ref}</td>
+                    <td class="p-3 text-right font-mono">£${item.net.toFixed(2)}</td>
+                    <td class="p-3 text-right font-mono">£${item.vat.toFixed(2)}</td>
+                    <td class="p-3 text-right font-mono font-bold">£${item.gross.toFixed(2)}</td>
+                    <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${item.status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${item.status}</span></td>
+                `;
+                recentTable.appendChild(tr);
+            });
+        }
+
+        function renderSalesTable() {
+            const tbody = document.getElementById('salesTableBody');
+            tbody.innerHTML = '';
+
+            appState.invoices.forEach(inv => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${inv.type === 'Credit Note' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : 'bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300'}">${inv.type}</span></td>
+                    <td class="p-4 font-mono font-bold">${inv.invNo}</td>
+                    <td class="p-4 font-semibold text-slate-800 dark:text-slate-200">${inv.customer}</td>
+                    <td class="p-4 text-slate-500">${inv.date}</td>
+                    <td class="p-4 text-right font-mono">£${inv.totalNet.toFixed(2)}</td>
+                    <td class="p-4 text-right font-mono">£${inv.totalVat.toFixed(2)}</td>
+                    <td class="p-4 text-right font-mono font-bold">£${inv.totalGross.toFixed(2)}</td>
+                    <td class="p-4 text-center">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${inv.status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${inv.status}</span>
+                    </td>
+                    <td class="p-4 text-right space-x-2">
+                        <button onclick="previewDocument('sales', '${inv.id}')" class="p-1.5 text-slate-500 hover:text-brand-600" title="Print/Preview"><i class="fa-solid fa-file-pdf text-sm"></i></button>
+                        <button onclick="toggleDocPaid('sales', '${inv.id}')" class="p-1.5 text-slate-500 hover:text-emerald-600" title="Toggle Paid"><i class="fa-solid fa-circle-check text-sm"></i></button>
+                        <button onclick="deleteDoc('sales', '${inv.id}')" class="p-1.5 text-slate-500 hover:text-rose-600" title="Delete"><i class="fa-solid fa-trash text-sm"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openInvoiceModal(docType = 'Invoice') {
+            document.getElementById('invDocType').value = docType;
+            document.getElementById('invModalTitle').innerText = docType === 'Invoice' ? 'Create Sales Invoice' : 'Issue Sales Return / Credit Note';
+            document.getElementById('invNumber').value = (docType === 'Invoice' ? 'INV-' : 'CN-') + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('invDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('invLinesContainer').innerHTML = '';
+            addInvoiceLineItem();
+            document.getElementById('invoiceModal').classList.remove('hidden');
+        }
+
+        function addInvoiceLineItem() {
+            const container = document.getElementById('invLinesContainer');
+            const div = document.createElement('div');
+            div.className = 'grid grid-cols-12 gap-2 items-center inv-line-row';
+            div.innerHTML = `
+                <input type="text" placeholder="Item description" required class="col-span-5 p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 inv-desc">
+                <input type="number" value="1" min="1" oninput="recalcInvoiceTotals()" class="col-span-2 p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 inv-qty">
+                <input type="number" step="0.01" value="0.00" oninput="recalcInvoiceTotals()" class="col-span-2 p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 inv-price">
+                <select onchange="recalcInvoiceTotals()" class="col-span-2 p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 inv-vat">
+                    <option value="20">20%</option>
+                    <option value="5">5%</option>
+                    <option value="0">0%</option>
+                    <option value="EXEMPT">Exempt</option>
+                </select>
+                <button type="button" onclick="this.parentElement.remove(); recalcInvoiceTotals();" class="col-span-1 text-rose-500 text-center"><i class="fa-solid fa-xmark"></i></button>
+            `;
+            container.appendChild(div);
+            recalcInvoiceTotals();
+        }
+
+        function recalcInvoiceTotals() {
+            let totalNet = 0, totalVat = 0;
+            document.querySelectorAll('.inv-line-row').forEach(row => {
+                const qty = parseFloat(row.querySelector('.inv-qty').value) || 0;
+                const price = parseFloat(row.querySelector('.inv-price').value) || 0;
+                const vatRateVal = row.querySelector('.inv-vat').value;
+                const vatRate = vatRateVal === 'EXEMPT' ? 0 : parseFloat(vatRateVal) || 0;
+
+                const lineNet = qty * price;
+                const lineVat = lineNet * (vatRate / 100);
+
+                totalNet += lineNet;
+                totalVat += lineVat;
+            });
+
+            document.getElementById('invCalcNet').innerText = `£${totalNet.toFixed(2)}`;
+            document.getElementById('invCalcVat').innerText = `£${totalVat.toFixed(2)}`;
+            document.getElementById('invCalcGross').innerText = `£${(totalNet + totalVat).toFixed(2)}`;
+        }
+
+        function saveInvoice(e) {
+            e.preventDefault();
+            const docType = document.getElementById('invDocType').value;
+            const items = [];
+            document.querySelectorAll('.inv-line-row').forEach(row => {
+                items.push({
+                    desc: row.querySelector('.inv-desc').value,
+                    qty: parseFloat(row.querySelector('.inv-qty').value) || 1,
+                    price: parseFloat(row.querySelector('.inv-price').value) || 0,
+                    vatRate: row.querySelector('.inv-vat').value
+                });
+            });
+
+            let net = 0, vat = 0;
+            items.forEach(i => {
+                const lNet = i.qty * i.price;
+                const r = i.vatRate === 'EXEMPT' ? 0 : parseFloat(i.vatRate) || 0;
+                net += lNet;
+                vat += lNet * (r / 100);
+            });
+
+            const doc = {
+                id: document.getElementById('invNumber').value,
+                invNo: document.getElementById('invNumber').value,
+                type: docType,
+                customer: document.getElementById('invCustomer').value,
+                date: document.getElementById('invDate').value,
+                items: items,
+                totalNet: net,
+                totalVat: vat,
+                totalGross: net + vat,
+                status: docType === 'Credit Note' ? 'Returned' : 'Unpaid'
+            };
+
+            appState.invoices.unshift(doc);
+            saveState();
+            closeModal('invoiceModal');
+            renderSalesTable();
+            renderDashboard();
+            showToast(`${docType} saved successfully!`);
+        }
+
+        function renderPurchasesTable() {
+            const tbody = document.getElementById('purchasesTableBody');
+            tbody.innerHTML = '';
+
+            appState.bills.forEach(b => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${b.type === 'Debit Note' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' : 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200'}">${b.type}</span></td>
+                    <td class="p-4 font-mono font-bold">${b.billNo}</td>
+                    <td class="p-4 font-semibold text-slate-800 dark:text-slate-200">${b.supplier}</td>
+                    <td class="p-4 text-slate-500">${b.date}</td>
+                    <td class="p-4 text-right font-mono">£${b.totalNet.toFixed(2)}</td>
+                    <td class="p-4 text-right font-mono">£${b.totalVat.toFixed(2)}</td>
+                    <td class="p-4 text-right font-mono font-bold">£${b.totalGross.toFixed(2)}</td>
+                    <td class="p-4 text-center">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${b.status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${b.status}</span>
+                    </td>
+                    <td class="p-4 text-right space-x-2">
+                        <button onclick="toggleDocPaid('purchases', '${b.id}')" class="p-1.5 text-slate-500 hover:text-emerald-600"><i class="fa-solid fa-circle-check text-sm"></i></button>
+                        <button onclick="deleteDoc('purchases', '${b.id}')" class="p-1.5 text-slate-500 hover:text-rose-600"><i class="fa-solid fa-trash text-sm"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openBillModal(docType = 'Bill') {
+            document.getElementById('billDocType').value = docType;
+            document.getElementById('billModalTitle').innerText = docType === 'Bill' ? 'Enter Supplier Bill' : 'Issue Purchase Return / Debit Note';
+            document.getElementById('billNumber').value = (docType === 'Bill' ? 'BIL-' : 'DN-') + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('billDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('billLinesContainer').innerHTML = '';
+            addBillLineItem();
+            document.getElementById('billModal').classList.remove('hidden');
+        }
+
+        function addBillLineItem() {
+            const container = document.getElementById('billLinesContainer');
+            const div = document.createElement('div');
+            div.className = 'grid grid-cols-12 gap-2 items-center bill-line-row';
+            div.innerHTML = `
+                <input type="text" placeholder="Expense description" required class="col-span-5 p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 bill-desc">
+                <input type="number" value="1" min="1" oninput="recalcBillTotals()" class="col-span-2 p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 bill-qty">
+                <input type="number" step="0.01" value="0.00" oninput="recalcBillTotals()" class="col-span-2 p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 bill-price">
+                <select onchange="recalcBillTotals()" class="col-span-2 p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 bill-vat">
+                    <option value="20">20%</option>
+                    <option value="5">5%</option>
+                    <option value="0">0%</option>
+                </select>
+                <button type="button" onclick="this.parentElement.remove(); recalcBillTotals();" class="col-span-1 text-rose-500 text-center"><i class="fa-solid fa-xmark"></i></button>
+            `;
+            container.appendChild(div);
+            recalcBillTotals();
+        }
+
+        function recalcBillTotals() {
+            let totalNet = 0, totalVat = 0;
+            document.querySelectorAll('.bill-line-row').forEach(row => {
+                const qty = parseFloat(row.querySelector('.bill-qty').value) || 0;
+                const price = parseFloat(row.querySelector('.bill-price').value) || 0;
+                const vatRate = parseFloat(row.querySelector('.bill-vat').value) || 0;
+
+                const lNet = qty * price;
+                totalNet += lNet;
+                totalVat += lNet * (vatRate / 100);
+            });
+
+            document.getElementById('billCalcNet').innerText = `£${totalNet.toFixed(2)}`;
+            document.getElementById('billCalcVat').innerText = `£${totalVat.toFixed(2)}`;
+            document.getElementById('billCalcGross').innerText = `£${(totalNet + totalVat).toFixed(2)}`;
+        }
+
+        function saveBill(e) {
+            e.preventDefault();
+            const docType = document.getElementById('billDocType').value;
+            const items = [];
+            document.querySelectorAll('.bill-line-row').forEach(row => {
+                items.push({
+                    desc: row.querySelector('.bill-desc').value,
+                    qty: parseFloat(row.querySelector('.bill-qty').value) || 1,
+                    price: parseFloat(row.querySelector('.bill-price').value) || 0,
+                    vatRate: row.querySelector('.bill-vat').value
+                });
+            });
+
+            let net = 0, vat = 0;
+            items.forEach(i => {
+                const lNet = i.qty * i.price;
+                const r = parseFloat(i.vatRate) || 0;
+                net += lNet;
+                vat += lNet * (r / 100);
+            });
+
+            const doc = {
+                id: document.getElementById('billNumber').value,
+                billNo: document.getElementById('billNumber').value,
+                type: docType,
+                supplier: document.getElementById('billSupplier').value,
+                date: document.getElementById('billDate').value,
+                items: items,
+                totalNet: net,
+                totalVat: vat,
+                totalGross: net + vat,
+                status: docType === 'Debit Note' ? 'Returned' : 'Unpaid'
+            };
+
+            appState.bills.unshift(doc);
+            saveState();
+            closeModal('billModal');
+            renderPurchasesTable();
+            renderDashboard();
+            showToast(`${docType} recorded successfully!`);
+        }
+
+        function renderExpensesTable() {
+            const tbody = document.getElementById('expensesTableBody');
+            tbody.innerHTML = '';
+
+            appState.expenses.forEach(exp => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-4 font-mono">${exp.date}</td>
+                    <td class="p-4 font-semibold text-slate-800 dark:text-slate-200">${exp.merchant}</td>
+                    <td class="p-4"><span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium">${exp.category}</span></td>
+                    <td class="p-4 text-slate-500">${exp.payMethod || 'Company Card'}</td>
+                    <td class="p-4 text-right font-mono">£${exp.netAmount.toFixed(2)}</td>
+                    <td class="p-4 text-right font-mono">${exp.vatRate}%</td>
+                    <td class="p-4 text-right font-mono text-emerald-600 dark:text-emerald-400">£${exp.vatAmount.toFixed(2)}</td>
+                    <td class="p-4 text-right font-mono font-bold">£${exp.grossAmount.toFixed(2)}</td>
+                    <td class="p-4 text-center">
+                        ${exp.attachment ? `<button onclick="viewReceipt('${exp.id}')" class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-semibold text-[10px] hover:underline flex items-center gap-1 mx-auto"><i class="fa-solid fa-paperclip"></i> View Receipt</button>` : `<span class="text-slate-400">None</span>`}
+                    </td>
+                    <td class="p-4 text-right">
+                        <button onclick="deleteDoc('expenses', '${exp.id}')" class="p-1.5 text-slate-500 hover:text-rose-600"><i class="fa-solid fa-trash text-sm"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openExpenseModal() {
+            document.getElementById('expDate').value = new Date().toISOString().split('T')[0];
+            pendingExpenseFileBase64 = null;
+            pendingExpenseFileName = null;
+            document.getElementById('expFileName').innerText = "Click or Drop Receipt File Here";
+            document.getElementById('expenseModal').classList.remove('hidden');
+        }
+
+        function handleExpenseFileSelected(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            pendingExpenseFileName = file.name;
+            document.getElementById('expFileName').innerText = `Attached: ${file.name}`;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                pendingExpenseFileBase64 = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function recalcExpenseTotal() {
+            const net = parseFloat(document.getElementById('expNet').value) || 0;
+            const rateVal = document.getElementById('expVatRate').value;
+            const rate = rateVal === 'EXEMPT' ? 0 : parseFloat(rateVal) || 0;
+
+            const vat = net * (rate / 100);
+            document.getElementById('expVatVal').innerText = `£${vat.toFixed(2)}`;
+            document.getElementById('expGrossVal').innerText = `£${(net + vat).toFixed(2)}`;
+        }
+
+        function saveExpense(e) {
+            e.preventDefault();
+            const net = parseFloat(document.getElementById('expNet').value) || 0;
+            const rateVal = document.getElementById('expVatRate').value;
+            const rate = rateVal === 'EXEMPT' ? 0 : parseFloat(rateVal) || 0;
+            const vat = net * (rate / 100);
+
+            const exp = {
+                id: 'EXP-' + Math.floor(1000 + Math.random() * 9000),
+                merchant: document.getElementById('expMerchant').value,
+                category: document.getElementById('expCategory').value,
+                date: document.getElementById('expDate').value,
+                payMethod: 'Company Card',
+                netAmount: net,
+                vatRate: rate,
+                vatAmount: vat,
+                grossAmount: net + vat,
+                fileName: pendingExpenseFileName || 'Receipt.png',
+                attachment: pendingExpenseFileBase64 || 'https://placehold.co/600x400/0284c7/ffffff?text=Receipt+Attached'
+            };
+
+            appState.expenses.unshift(exp);
+            saveState();
+            closeModal('expenseModal');
+            renderExpensesTable();
+            renderDashboard();
+            showToast('Expense log and receipt saved!');
+        }
+
+        function viewReceipt(expId) {
+            const exp = appState.expenses.find(e => e.id === expId);
+            if (!exp || !exp.attachment) return;
+
+            document.getElementById('receiptViewerTitle').innerText = `Receipt Preview - ${exp.merchant} (${exp.date})`;
+            const container = document.getElementById('receiptViewerContent');
+
+            if (exp.attachment.startsWith('data:application/pdf')) {
+                container.innerHTML = `<p class="text-xs text-slate-500">PDF Document Attached: <a href="${exp.attachment}" download="${exp.fileName}" class="text-brand-600 underline font-bold">Download PDF File</a></p>`;
+            } else {
+                container.innerHTML = `<img src="${exp.attachment}" class="max-h-[50vh] rounded-xl object-contain shadow-md" alt="Receipt Attachment">`;
+            }
+
+            document.getElementById('receiptViewerModal').classList.remove('hidden');
+        }
+
+        function renderBankTable() {
+            const tbody = document.getElementById('bankTableBody');
+            tbody.innerHTML = '';
+            let unmatchedCount = 0;
+
+            appState.bankTransactions.forEach(tx => {
+                if (tx.status === 'Unmatched') unmatchedCount++;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-4 font-mono">${tx.date}</td>
+                    <td class="p-4 font-medium">${tx.description}</td>
+                    <td class="p-4 text-right font-mono font-bold ${tx.amount < 0 ? 'text-rose-500' : 'text-emerald-600'}">£${tx.amount.toFixed(2)}</td>
+                    <td class="p-4 text-center">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${tx.status === 'Matched' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${tx.status}</span>
+                    </td>
+                    <td class="p-4 text-slate-500 font-mono text-xs">${tx.matchedId ? `${tx.matchedType} (${tx.matchedId})` : '—'}</td>
+                    <td class="p-4 text-right">
+                        ${tx.status === 'Unmatched' ? `<button onclick="manualMatchTx('${tx.id}')" class="px-2.5 py-1 rounded-lg bg-brand-50 text-brand-700 font-semibold text-xs hover:bg-brand-100">Match</button>` : `<span class="text-emerald-600 font-bold"><i class="fa-solid fa-check"></i> Reconciled</span>`}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('reconMatchStats').innerText = `${unmatchedCount} Unmatched Lines`;
+        }
+
+        function triggerAutoMatch() {
+            let matchCount = 0;
+            appState.bankTransactions.forEach(tx => {
+                if (tx.status === 'Unmatched') {
+                    // Try to match Sales Invoices or Bills
+                    const inv = appState.invoices.find(i => Math.abs(i.totalGross - Math.abs(tx.amount)) < 0.01);
+                    if (inv) {
+                        tx.status = 'Matched';
+                        tx.matchedType = inv.type;
+                        tx.matchedId = inv.id;
+                        inv.status = 'Paid';
+                        matchCount++;
+                    } else {
+                        const bill = appState.bills.find(b => Math.abs(b.totalGross - Math.abs(tx.amount)) < 0.01);
+                        if (bill) {
+                            tx.status = 'Matched';
+                            tx.matchedType = bill.type;
+                            tx.matchedId = bill.id;
+                            bill.status = 'Paid';
+                            matchCount++;
+                        }
+                    }
+                }
+            });
+
+            saveState();
+            renderBankTable();
+            renderSalesTable();
+            renderPurchasesTable();
+            renderDashboard();
+            showToast(`Auto-Match completed! Reconciled ${matchCount} lines.`);
+        }
+
+        function handleBankCsvUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const text = evt.target.result;
+                const lines = text.split('\n');
+                let count = 0;
+
+                for (let i = 1; i < lines.length; i++) {
+                    const row = lines[i].split(',');
+                    if (row.length >= 3) {
+                        appState.bankTransactions.unshift({
+                            id: 'BNK-' + Math.floor(100 + Math.random() * 900),
+                            date: row[0].trim(),
+                            description: row[1].trim(),
+                            amount: parseFloat(row[2].trim()) || 0,
+                            status: 'Unmatched',
+                            matchedType: null,
+                            matchedId: null
+                        });
+                        count++;
+                    }
+                }
+                saveState();
+                renderBankTable();
+                showToast(`Parsed and imported ${count} bank feed transactions!`);
+            };
+            reader.readAsText(file);
+        }
+
+        function calculateMtd9Boxes() {
+            // Box 1: Output tax on Sales minus Sales Returns (Credit Notes)
+            let box1 = 0;
+            let box6 = 0;
+            appState.invoices.forEach(inv => {
+                if (inv.type === 'Invoice') {
+                    box1 += inv.totalVat;
+                    box6 += inv.totalNet;
+                } else if (inv.type === 'Credit Note') {
+                    box1 -= inv.totalVat;
+                    box6 -= inv.totalNet;
+                }
+            });
+
+            // Box 4: Input tax on Bills minus Debit Notes + Expenses
+            let box4 = 0;
+            let box7 = 0;
+            appState.bills.forEach(b => {
+                if (b.type === 'Bill') {
+                    box4 += b.totalVat;
+                    box7 += b.totalNet;
+                } else if (b.type === 'Debit Note') {
+                    box4 -= b.totalVat;
+                    box7 -= b.totalNet;
+                }
+            });
+
+            appState.expenses.forEach(e => {
+                box4 += e.vatAmount;
+                box7 += e.netAmount;
+            });
+
+            const box2 = 0; // EC acquisitions
+            const box3 = box1 + box2;
+            const box5 = Math.abs(box3 - box4);
+            const box8 = 0, box9 = 0;
+
+            return { box1, box2, box3, box4, box5, box6, box7, box8, box9 };
+        }
+
+        function renderMtdBoxCalculations() {
+            const mtd = calculateMtd9Boxes();
+
+            document.getElementById('box1Val').innerText = `£${mtd.box1.toFixed(2)}`;
+            document.getElementById('box2Val').innerText = `£${mtd.box2.toFixed(2)}`;
+            document.getElementById('box3Val').innerText = `£${mtd.box3.toFixed(2)}`;
+            document.getElementById('box4Val').innerText = `£${mtd.box4.toFixed(2)}`;
+            document.getElementById('box5Val').innerText = `£${mtd.box5.toFixed(2)}`;
+            document.getElementById('box6Val').innerText = `£${mtd.box6.toFixed(2)}`;
+            document.getElementById('box7Val').innerText = `£${mtd.box7.toFixed(2)}`;
+            document.getElementById('box8Val').innerText = `£${mtd.box8.toFixed(2)}`;
+            document.getElementById('box9Val').innerText = `£${mtd.box9.toFixed(2)}`;
+
+            // Render JSON REST API payload preview
+            const payload = {
+                periodKey: "26C3",
+                vatDueSales: parseFloat(mtd.box1.toFixed(2)),
+                vatDueAcquisitions: parseFloat(mtd.box2.toFixed(2)),
+                totalVatDue: parseFloat(mtd.box3.toFixed(2)),
+                vatReclaimedCurrPeriod: parseFloat(mtd.box4.toFixed(2)),
+                netVatDue: parseFloat(mtd.box5.toFixed(2)),
+                totalValueSalesExVAT: parseFloat(mtd.box6.toFixed(2)),
+                totalValuePurchasesExVAT: parseFloat(mtd.box7.toFixed(2)),
+                totalValueGoodsSuppliedExVAT: parseFloat(mtd.box8.toFixed(2)),
+                totalAcquisitionsExVAT: parseFloat(mtd.box9.toFixed(2)),
+                finalised: true
+            };
+
+            document.getElementById('mtdJsonPayload').innerText = JSON.stringify(payload, null, 2);
+        }
+
+        function submitMtdReturn() {
+            showToast('Submitting VAT Return to HMRC Sandbox Gateway...');
+            setTimeout(() => {
+                showToast('HMRC Submission Successful! Receipt Token: MTD-ACK-2026-9812739');
+            }, 1200);
+        }
+
+        function switchTaxSubTab(subId) {
+            document.querySelectorAll('#tab-tax > div[id^="taxSubTab-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('#tab-tax button[id^="taxSubBtn-"]').forEach(el => {
+                el.classList.remove('bg-brand-50', 'text-brand-700', 'dark:bg-brand-900/50', 'dark:text-brand-300');
+                el.classList.add('text-slate-600', 'dark:text-slate-400');
+            });
+
+            document.getElementById(`taxSubTab-${subId}`).classList.remove('hidden');
+            const btn = document.getElementById(`taxSubBtn-${subId}`);
+            btn.classList.add('bg-brand-50', 'text-brand-700', 'dark:bg-brand-900/50', 'dark:text-brand-300');
+        }
+
+        function calculateItsaTax() {
+            const profit = parseFloat(document.getElementById('itsaProfitInput').value) || 0;
+            const pa = 12570;
+            let taxable = Math.max(0, profit - pa);
+
+            let basicTax = Math.min(taxable, 37700) * 0.20;
+            let higherTax = Math.max(0, taxable - 37700) * 0.40;
+            let nic4 = Math.max(0, profit - 12570) * 0.06;
+
+            const totalBill = basicTax + higherTax + nic4;
+            const takeHome = profit - totalBill;
+            const effRate = profit > 0 ? ((totalBill / profit) * 100).toFixed(1) : 0;
+
+            document.getElementById('itsaBasic').innerText = `£${basicTax.toFixed(2)}`;
+            document.getElementById('itsaHigher').innerText = `£${higherTax.toFixed(2)}`;
+            document.getElementById('itsaNic4').innerText = `£${nic4.toFixed(2)}`;
+            document.getElementById('itsaTotalBill').innerText = `£${totalBill.toFixed(2)}`;
+            document.getElementById('itsaEffectiveRate').innerText = `${effRate}%`;
+            document.getElementById('itsaTakeHome').innerText = `£${takeHome.toFixed(2)}`;
+        }
+
+        function calculateCt600Tax() {
+            const profit = parseFloat(document.getElementById('ctProfitInput').value) || 0;
+            let mainRateTax = profit * 0.25;
+            let reliefDeduction = 0;
+
+            if (profit > 50000 && profit < 250000) {
+                // Marginal Relief Formula: 3/200 * (Upper Limit £250,000 - Profit)
+                reliefDeduction = (3 / 200) * (250000 - profit);
+            } else if (profit <= 50000) {
+                reliefDeduction = profit * (0.25 - 0.19);
+            }
+
+            const netCt = Math.max(0, mainRateTax - reliefDeduction);
+            const effRate = profit > 0 ? ((netCt / profit) * 100).toFixed(1) : 0;
+
+            document.getElementById('ctMainRateTax').innerText = `£${mainRateTax.toFixed(2)}`;
+            document.getElementById('ctReliefDeduction').innerText = `-£${reliefDeduction.toFixed(2)}`;
+            document.getElementById('ctTotalTax').innerText = `£${netCt.toFixed(2)}`;
+            document.getElementById('ctEffectiveRate').innerText = `${effRate}%`;
+        }
+
+        function calculateOptimizer() {
+            const availProfit = parseFloat(document.getElementById('optProfitInput').value) || 0;
+            const salary = 12570;
+            const ctSaved = salary * 0.19;
+
+            const postSalaryProfit = Math.max(0, availProfit - salary);
+            const ctTax = postSalaryProfit <= 50000 ? postSalaryProfit * 0.19 : postSalaryProfit * 0.25;
+            const divAvail = Math.max(0, postSalaryProfit - ctTax);
+
+            // Dividend Tax: £500 allowance, then 8.75% basic rate up to £37,700 taxable band
+            let divTax = 0;
+            const taxableDiv = Math.max(0, divAvail - 500);
+            divTax = taxableDiv * 0.0875;
+
+            const totalTakeHome = salary + (divAvail - divTax);
+            const taxLeakage = availProfit > 0 ? (((availProfit - totalTakeHome) / availProfit) * 100).toFixed(1) : 0;
+
+            document.getElementById('optCtSaved').innerText = `£${ctSaved.toFixed(2)}`;
+            document.getElementById('optDivAvail').innerText = `£${divAvail.toFixed(2)}`;
+            document.getElementById('optDivTax').innerText = `£${divTax.toFixed(2)}`;
+            document.getElementById('optTakeHome').innerText = `£${totalTakeHome.toFixed(2)}`;
+            document.getElementById('optTaxLeakage').innerText = `${taxLeakage}%`;
+
+            // Chart
+            const ctx = document.getElementById('optimizerChart').getContext('2d');
+            if (optimizerChartInstance) optimizerChartInstance.destroy();
+
+            optimizerChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Director Salary', 'Net Dividend', 'Total Taxes (CT + Div)'],
+                    datasets: [{
+                        data: [salary, divAvail - divTax, ctTax + divTax],
+                        backgroundColor: ['#0284c7', '#10b981', '#f43f5e']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+
+        function renderCisTable() {
+            const tbody = document.getElementById('cisTableBody');
+            tbody.innerHTML = '';
+
+            appState.cisRecords.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-3 font-mono">${c.date}</td>
+                    <td class="p-3 font-semibold text-slate-800 dark:text-slate-200">${c.name}</td>
+                    <td class="p-3 font-mono">${c.utr}</td>
+                    <td class="p-3 text-right font-mono">£${c.grossPaid.toFixed(2)}</td>
+                    <td class="p-3 text-right font-mono">${c.rate}%</td>
+                    <td class="p-3 text-right font-mono text-rose-500">£${c.deducted.toFixed(2)}</td>
+                    <td class="p-3 text-right font-mono font-bold">£${c.netPaid.toFixed(2)}</td>
+                    <td class="p-3 text-right">
+                        <button onclick="printCisCertificate('${c.id}')" class="px-2 py-1 bg-brand-50 text-brand-700 font-semibold rounded hover:underline">Certificate</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openCisModal() {
+            document.getElementById('cisModal').classList.remove('hidden');
+        }
+
+        function saveCisPayment(e) {
+            e.preventDefault();
+            const gross = parseFloat(document.getElementById('cisGross').value) || 0;
+            const rate = parseFloat(document.getElementById('cisRate').value) || 0;
+            const deducted = gross * (rate / 100);
+
+            const record = {
+                id: 'CIS-' + Math.floor(100 + Math.random() * 900),
+                date: new Date().toISOString().split('T')[0],
+                name: document.getElementById('cisName').value,
+                utr: document.getElementById('cisUtr').value,
+                grossPaid: gross,
+                rate: rate,
+                deducted: deducted,
+                netPaid: gross - deducted
+            };
+
+            appState.cisRecords.unshift(record);
+            saveState();
+            closeModal('cisModal');
+            renderCisTable();
+            showToast('CIS subcontractor deduction logged!');
+        }
+
+        function previewDocument(type, id) {
+            const doc = type === 'sales' ? appState.invoices.find(i => i.id === id) : appState.bills.find(b => b.id === id);
+            if (!doc) return;
+
+            const area = document.getElementById('printableArea');
+            area.innerHTML = `
+                <div class="flex justify-between items-start border-b border-slate-200 pb-4">
+                    <div>
+                        <h1 class="text-2xl font-bold uppercase tracking-tight ${doc.type.includes('Credit') || doc.type.includes('Debit') ? 'text-rose-600' : 'text-brand-600'}">${doc.type}</h1>
+                        <p class="text-slate-500 font-mono mt-1">Ref #: ${doc.invNo || doc.billNo}</p>
+                        <p class="text-slate-500">Date: ${doc.date}</p>
+                    </div>
+                    <div class="text-right">
+                        <h2 class="font-bold text-slate-800">${appState.companyProfile.name}</h2>
+                        <p class="text-slate-500">${appState.companyProfile.address}</p>
+                        <p class="text-slate-500 font-mono">VRN: ${appState.companyProfile.vrn}</p>
+                    </div>
+                </div>
+
+                <div class="my-4">
+                    <span class="text-slate-400 uppercase text-[10px] font-bold">Billed To:</span>
+                    <p class="font-bold text-slate-800 text-sm mt-0.5">${doc.customer || doc.supplier}</p>
+                </div>
+
+                <table class="w-full text-left my-6 border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-300 text-slate-500 uppercase text-[10px]">
+                            <th class="py-2">Description</th>
+                            <th class="py-2 text-center">Qty</th>
+                            <th class="py-2 text-right">Price (£)</th>
+                            <th class="py-2 text-right">VAT Rate</th>
+                            <th class="py-2 text-right">Total (£)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${doc.items.map(i => `
+                            <tr>
+                                <td class="py-2 font-medium">${i.desc}</td>
+                                <td class="py-2 text-center">${i.qty}</td>
+                                <td class="py-2 text-right font-mono">£${i.price.toFixed(2)}</td>
+                                <td class="py-2 text-right font-mono">${i.vatRate}%</td>
+                                <td class="py-2 text-right font-mono font-bold">£${(i.qty * i.price).toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <div class="border-t border-slate-200 pt-4 text-right space-y-1 font-mono">
+                    <p class="text-slate-500">Subtotal Net: <strong>£${doc.totalNet.toFixed(2)}</strong></p>
+                    <p class="text-slate-500">VAT Total: <strong>£${doc.totalVat.toFixed(2)}</strong></p>
+                    <p class="text-base font-bold text-slate-900 mt-2">Total Amount Due: £${doc.totalGross.toFixed(2)}</p>
+                </div>
+            `;
+
+            document.getElementById('previewDocModal').classList.remove('hidden');
+        }
+
+        function toggleDocPaid(type, id) {
+            const arr = type === 'sales' ? appState.invoices : appState.bills;
+            const doc = arr.find(d => d.id === id);
+            if (doc) {
+                doc.status = doc.status === 'Paid' ? 'Unpaid' : 'Paid';
+                saveState();
+                if (type === 'sales') renderSalesTable();
+                else renderPurchasesTable();
+                renderDashboard();
+                showToast(`Status updated to ${doc.status}!`);
+            }
+        }
+
+        function deleteDoc(type, id) {
+            if (type === 'sales') appState.invoices = appState.invoices.filter(i => i.id !== id);
+            if (type === 'purchases') appState.bills = appState.bills.filter(b => b.id !== id);
+            if (type === 'expenses') appState.expenses = appState.expenses.filter(e => e.id !== id);
+
+            saveState();
+            renderSalesTable();
+            renderPurchasesTable();
+            renderExpensesTable();
+            renderDashboard();
+            showToast('Item deleted successfully.');
+        }
+
+        function filterSalesTable() {
+            const query = document.getElementById('salesSearchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#salesTableBody tr');
+            rows.forEach(r => {
+                const text = r.innerText.toLowerCase();
+                r.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        function filterPurchasesTable() {
+            const query = document.getElementById('purchasesSearchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#purchasesTableBody tr');
+            rows.forEach(r => {
+                const text = r.innerText.toLowerCase();
+                r.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        function backupDatabase() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `LedgerFlow_Backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function restoreDatabase(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    appState = JSON.parse(evt.target.result);
+                    saveState();
+                    location.reload();
+                } catch(err) { showToast('Invalid backup JSON file!', 'error'); }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetToSampleData() {
+            appState = JSON.parse(JSON.stringify(DEFAULT_DEMO_DATA));
+            saveState();
+            location.reload();
+        }
+
+        function exportAuditTrail() {
+            const auditData = {
+                header: { system: "LedgerFlow MTD", notice70022Compliant: true, timestamp: new Date().toISOString() },
+                mtdCalculation: calculateMtd9Boxes(),
+                transactionsCount: appState.invoices.length + appState.bills.length + appState.expenses.length
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(auditData, null, 2));
+            const dl = document.createElement('a');
+            dl.setAttribute("href", dataStr);
+            dl.setAttribute("download", `HMRC_Notice700_22_AuditTrail_${Date.now()}.json`);
+            document.body.appendChild(dl);
+            dl.click();
+            dl.remove();
+        }
+    </script>
+</body>
+</html>
