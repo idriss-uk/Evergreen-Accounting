@@ -22,7 +22,7 @@ function create(input) {
  return {...input,id:input.id || 'EXP-' + crypto.randomUUID(),merchant:input.merchant.trim(),netAmount,vatRate:rate,vatAmount,grossAmount:money(netAmount+vatAmount),currency:'GBP',createdAt:new Date().toISOString()};
 }
 function duplicates(expense, history) {
- return history.filter(e => String(e.merchant).trim().toLowerCase() === expense.merchant.toLowerCase() && e.date === expense.date && money(e.grossAmount) === expense.grossAmount);
+ return history.filter(e => e.id !== expense.id && String(e.merchant).trim().toLowerCase() === expense.merchant.toLowerCase() && e.date === expense.date && money(e.grossAmount) === expense.grossAmount);
 }
 function validateFile(file) {
  if (!['image/jpeg','image/png','image/webp','application/pdf'].includes(file.type)) throw Error('Choose a JPG, PNG, WEBP or PDF receipt.');
@@ -32,5 +32,32 @@ function extractionRequest(expense) {
  if (!expense.attachment || !expense.receipt) throw Error('Attach a receipt first.');
  return {schemaVersion:1,receipt:expense.receipt,fields:['merchant','date','reference','netAmount','vatAmount','grossAmount','currency'],requiresHumanReview:true};
 }
-window.EvergreenReceipts = Object.freeze({categories,suggest,create,duplicates,validateFile,extractionRequest,extractionAvailable:false});
+
+function revise(existing, input) {
+ if (!existing) throw Error('Expense no longer exists. Reopen the expense list.');
+ const category = input.category ?? existing.category;
+ const legacyCategory = category === existing.category && !categories.includes(category);
+ const expense = create({...existing, ...input, id:existing.id, category:legacyCategory ? 'Other Expenses' : category});
+ if (legacyCategory) expense.category = category;
+ expense.createdAt = existing.createdAt || null;
+ expense.updatedAt = new Date().toISOString();
+ expense.supplierId = null;
+ const fields = ['merchant','category','date','payMethod','reference','notes','netAmount','vatTreatment','vatRate','vatAmount','grossAmount','fileName','receipt'];
+ const before = Object.fromEntries(fields.map(key => [key, existing[key] ?? null]));
+ expense.revisions = [...(existing.revisions || []), {changedAt:expense.updatedAt, before, receiptChanged:existing.attachment !== expense.attachment}];
+ return expense;
+}
+function applyExpense(state, expense, ledger) {
+ if (!ledger) throw Error('Accounting engine is unavailable. Refresh and try again.');
+ const journal = ledger.fromDocument('Expense',expense);
+ const previous = (state.ledgerEntries || []).find(entry => entry.sourceType === 'Expense' && entry.sourceId === expense.id);
+ if (previous) {journal.id = previous.id; journal.createdAt = previous.createdAt; journal.updatedAt = new Date().toISOString();}
+ const entries = (state.ledgerEntries || []).filter(entry => !(entry.sourceType === 'Expense' && entry.sourceId === expense.id));
+ const index = state.expenses.findIndex(item => item.id === expense.id);
+ if (index < 0) state.expenses.unshift(expense); else state.expenses[index] = expense;
+ state.ledgerEntries = [...entries, journal];
+ return expense;
+}
+
+window.EvergreenReceipts = Object.freeze({categories,suggest,create,revise,applyExpense,duplicates,validateFile,extractionRequest,extractionAvailable:false});
 })();
