@@ -1452,6 +1452,12 @@
             };
 
             appState.invoices.unshift(doc);
+            if (window.EvergreenCustomers) {
+                window.EvergreenCustomers.ensureCustomer(appState, doc.customer);
+            }
+            if (window.EvergreenLedger) {
+                appState.ledgerEntries.push(window.EvergreenLedger.fromDocument(docType, doc));
+            }
             saveState();
             closeModal('invoiceModal');
             renderSalesTable();
@@ -1566,6 +1572,12 @@
             };
 
             appState.bills.unshift(doc);
+            if (window.EvergreenSuppliers) {
+                window.EvergreenSuppliers.ensureSupplier(appState, doc.supplier);
+            }
+            if (window.EvergreenLedger) {
+                appState.ledgerEntries.push(window.EvergreenLedger.fromDocument(docType, doc));
+            }
             saveState();
             closeModal('billModal');
             renderPurchasesTable();
@@ -1652,6 +1664,12 @@
             };
 
             appState.expenses.unshift(exp);
+            if (window.EvergreenSuppliers) {
+                window.EvergreenSuppliers.ensureSupplier(appState, exp.merchant);
+            }
+            if (window.EvergreenLedger) {
+                appState.ledgerEntries.push(window.EvergreenLedger.fromDocument('Expense', exp));
+            }
             saveState();
             closeModal('expenseModal');
             renderExpensesTable();
