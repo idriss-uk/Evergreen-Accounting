@@ -2,24 +2,33 @@
   'use strict';
 
   function findDocument(state, documentType, documentId) {
-    if (documentType === 'Invoice') {
-      return (state.invoices || []).find((item) => item.id === documentId) || null;
-    }
-    if (documentType === 'Bill') {
-      return (state.bills || []).find((item) => item.id === documentId) || null;
-    }
-    return null;
+    const collection = documentType === 'Invoice'
+      ? (state.invoices || [])
+      : documentType === 'Bill'
+        ? (state.bills || [])
+        : [];
+    const document = collection.find((item) => item.id === documentId) || null;
+    return document && document.type === documentType ? document : null;
+  }
+
+  function paymentsForDocument(state, documentType, documentId) {
+    return (state.payments || [])
+      .filter((payment) => payment.documentType === documentType && payment.documentId === documentId)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
   }
 
   function paidAmount(state, documentType, documentId) {
-    return (state.payments || [])
-      .filter((payment) => payment.documentType === documentType && payment.documentId === documentId)
+    return paymentsForDocument(state, documentType, documentId)
       .reduce((total, payment) => total + (Number(payment.amount) || 0), 0);
   }
 
   function outstandingAmount(state, documentType, documentId) {
     const document = findDocument(state, documentType, documentId);
     if (!document) return 0;
+
+    const payments = paymentsForDocument(state, documentType, documentId);
+    if (payments.length === 0 && document.status === 'Paid') return 0;
+
     const gross = Number(document.totalGross) || 0;
     return Math.max(0, Math.round((gross - paidAmount(state, documentType, documentId)) * 100) / 100);
   }
@@ -31,6 +40,7 @@
     const outstandingBefore = outstandingAmount(state, input.documentType, input.documentId);
     const amount = Math.round((Number(input.amount) || 0) * 100) / 100;
     if (amount <= 0) throw new Error('Payment amount must be greater than zero');
+    if (outstandingBefore <= 0) throw new Error('This document has no outstanding balance');
     if (amount > outstandingBefore) throw new Error('Payment amount exceeds the outstanding balance');
 
     state.payments = Array.isArray(state.payments) ? state.payments : [];
@@ -42,8 +52,8 @@
       documentId: input.documentId,
       amount,
       date: input.date || new Date().toISOString().slice(0, 10),
-      method: input.method || 'Bank',
-      reference: input.reference || document.invNo || document.billNo || document.id,
+      method: input.method || 'Bank Transfer',
+      reference: String(input.reference || document.invNo || document.billNo || document.id).trim(),
       direction: input.documentType === 'Invoice' ? 'incoming' : 'outgoing',
       createdAt: new Date().toISOString()
     };
@@ -62,6 +72,7 @@
 
   window.EvergreenPayments = Object.freeze({
     findDocument,
+    paymentsForDocument,
     paidAmount,
     outstandingAmount,
     recordPayment
