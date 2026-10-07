@@ -1140,8 +1140,8 @@
         let pendingExpenseFileBase64 = null;
         let pendingExpenseFileName = null;
 
-        window.onload = function() {
-            loadState();
+        window.onload = async function() {
+            await loadState();
             renderDashboard();
             renderSalesTable();
             renderPurchasesTable();
@@ -1154,19 +1154,65 @@
             calculateOptimizer();
         };
 
-        function loadState() {
-            const saved = localStorage.getItem('ledgerflow_mtd_db');
-            if (saved) {
-                try { appState = JSON.parse(saved); } 
-                catch(e) { appState = JSON.parse(JSON.stringify(DEFAULT_DEMO_DATA)); }
-            } else {
-                appState = JSON.parse(JSON.stringify(DEFAULT_DEMO_DATA));
-                saveState();
+        async function loadState() {
+            const stateApi = window.EvergreenState;
+            const storageApi = window.EvergreenStorage;
+            const primaryKey = stateApi?.STORAGE_KEY || 'evergreen_accounting_db_v5';
+
+            try {
+                const indexedSnapshot = storageApi ? await storageApi.loadSnapshot() : null;
+                if (indexedSnapshot) {
+                    appState = stateApi ? stateApi.normalize(indexedSnapshot) : indexedSnapshot;
+                    localStorage.setItem(primaryKey, JSON.stringify(appState));
+                    return;
+                }
+            } catch (error) {
+                console.warn('Evergreen Accounting: IndexedDB load failed, using local fallback.', error);
             }
+
+            let parsedState = null;
+            const primarySaved = localStorage.getItem(primaryKey);
+
+            if (primarySaved) {
+                try { parsedState = JSON.parse(primarySaved); }
+                catch (error) { console.warn('Evergreen Accounting: primary local state was invalid.', error); }
+            }
+
+            if (!parsedState) {
+                const legacyKeys = stateApi?.LEGACY_STORAGE_KEYS || ['ledgerflow_mtd_db'];
+                for (const legacyKey of legacyKeys) {
+                    const legacySaved = localStorage.getItem(legacyKey);
+                    if (!legacySaved) continue;
+                    try {
+                        parsedState = JSON.parse(legacySaved);
+                        console.info(`Evergreen Accounting: migrated local data from ${legacyKey}`);
+                        break;
+                    } catch (error) {
+                        console.warn(`Evergreen Accounting: unable to migrate ${legacyKey}`, error);
+                    }
+                }
+            }
+
+            appState = stateApi
+                ? stateApi.normalize(parsedState || DEFAULT_DEMO_DATA)
+                : JSON.parse(JSON.stringify(parsedState || DEFAULT_DEMO_DATA));
+
+            saveState();
         }
 
         function saveState() {
-            localStorage.setItem('ledgerflow_mtd_db', JSON.stringify(appState));
+            const stateApi = window.EvergreenState;
+            const storageApi = window.EvergreenStorage;
+            const primaryKey = stateApi?.STORAGE_KEY || 'evergreen_accounting_db_v5';
+
+            appState = stateApi ? stateApi.normalize(appState) : appState;
+            localStorage.setItem(primaryKey, JSON.stringify(appState));
+
+            if (storageApi) {
+                storageApi.saveSnapshot(appState).catch((error) => {
+                    console.warn('Evergreen Accounting: IndexedDB save failed; local fallback remains available.', error);
+                });
+            }
         }
 
         function showToast(message, type = 'success') {
@@ -2100,6 +2146,12 @@
         <button onclick="switchTab('bank')" aria-label="Banking"><i class="fa-solid fa-building-columns"></i><span>Banking</span></button>
         <button onclick="switchTab('settingsTab')" aria-label="More"><i class="fa-solid fa-ellipsis"></i><span>More</span></button>
     </nav>
+    <script src="js/core/state.js"></script>
+    <script src="js/core/storage.js"></script>
+    <script src="js/core/ledger.js"></script>
+    <script src="js/core/customers.js"></script>
+    <script src="js/core/suppliers.js"></script>
+    <script src="js/core/payments.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
