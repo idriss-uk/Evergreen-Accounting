@@ -1065,19 +1065,19 @@
     </div>
 
     <!-- MODAL 3: EXPENSE ENTRY & FILE ATTACHMENT -->
-    <div id="expenseModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
-        <div class="glass-panel bg-white dark:bg-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 my-8">
+    <div id="expenseModal" role="dialog" aria-modal="true" aria-labelledby="expenseModalTitle" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="expense-dialog glass-panel bg-white dark:bg-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 my-8">
             <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3">
-                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <h3 id="expenseModalTitle" class="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                     <i class="fa-solid fa-receipt text-emerald-500"></i> Log Operational Expense & Receipt
                 </h3>
-                <button onclick="closeModal('expenseModal')" class="text-slate-400 hover:text-slate-600 text-lg">
+                <button aria-label="Close expense form" onclick="closeModal('expenseModal')" class="text-slate-400 hover:text-slate-600 text-lg">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
             <form id="expenseForm" onsubmit="saveExpense(event)" class="space-y-3 text-xs">
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block font-medium mb-1">Merchant / Supplier</label>
                         <input type="text" id="expMerchant" oninput="suggestExpenseCategory()" required placeholder="Apple Store / Uber" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
@@ -1095,7 +1095,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                         <label class="block font-medium mb-1">Date</label>
                         <input type="date" id="expDate" required class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
@@ -1124,7 +1124,7 @@
  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
  <label>Payment method<select id="expPayMethod" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"><option>Company Card</option><option>Bank Transfer</option></select></label>
  <label>Receipt reference<input id="expReference" maxlength="100" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"></label></div>
- <label class="block">Notes<textarea id="expNotes" maxlength="1000" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"></textarea></label>
+ <label class="block">Notes<textarea id="expNotes" rows="2" maxlength="1000" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"></textarea></label>
  <p class="text-slate-500">Paid business expenses in GBP. Enter receipt figures manually and review VAT. OCR / AI extraction is not available.</p>
                 <!-- File Attachment Area -->
                 <div>
@@ -1139,7 +1139,7 @@
 
 <input type="file" id="expCameraInput" accept="image/jpeg,image/png,image/webp" capture="environment" class="hidden" onchange="handleExpenseFileSelected(event)">
  <button type="button" onclick="document.getElementById('expCameraInput').click()" class="px-4 py-3 bg-brand-600 text-white rounded-xl">Take receipt photo</button>
-                <div class="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                <div class="expense-actions flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
                     <button type="button" onclick="closeModal('expenseModal')" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200">Cancel</button>
                     <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Save Expense Entry</button>
                 </div>
@@ -1971,6 +1971,7 @@
  document.getElementById('expCategoryHint').textContent = '';
  recalcExpenseTotal();
  document.getElementById('expenseModal').classList.remove('hidden');
+ document.getElementById('expenseForm').scrollTop = 0;
 }
 
         async function handleExpenseFileSelected(e) {
