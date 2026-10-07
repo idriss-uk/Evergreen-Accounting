@@ -408,7 +408,28 @@
     };
   }
 
+
+  function canRemoveTransaction(state,tx) {
+    return Boolean(tx) && tx.status!=='Matched' && !tx.matchedId && !tx.matchedType && !tx.matchedAt && !(Number(tx.matchedAmount)>0) &&
+      !(state.payments || []).some(payment=>payment.bankTransactionId===tx.id);
+  }
+  function removeTransactions(state,ids) {
+    const selected=new Set(ids || []);
+    if (!selected.size) throw Error('Select at least one bank transaction.');
+    const transactions=state.bankTransactions || [];
+    const rows=transactions.filter(tx=>selected.has(tx.id));
+    if (rows.length!==selected.size) throw Error('The selection changed. Reopen the removal list.');
+    if (rows.some(tx=>!canRemoveTransaction(state,tx))) throw Error('Reconciled transactions cannot be removed here. Their payment records must be reviewed first.');
+    const remaining=transactions.filter(tx=>!selected.has(tx.id));
+    const removal={removedAt:new Date().toISOString(),transactionIds:rows.map(tx=>tx.id),count:rows.length,movement:roundMoney(rows.reduce((total,tx)=>total+Number(tx.amount),0))};
+    state.bankTransactions=remaining;
+    state.bankRemovalHistory=[...(state.bankRemovalHistory || []),removal];
+    return removal;
+  }
+
   window.EvergreenBanking = Object.freeze({
+    canRemoveTransaction,
+    removeTransactions,
     parseAmount,
     parseCsv,
     fingerprint,
