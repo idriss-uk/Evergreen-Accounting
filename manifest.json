@@ -1,0 +1,25 @@
+{
+  "name": "Evergreen Accounting",
+  "short_name": "Evergreen",
+  "description": "Simple UK business accounting for sales, purchases, expenses, banking, VAT and tax workflows.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F5F7F0",
+  "theme_color": "#556B2F",
+  "categories": [
+    "business",
+    "finance",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "assets/evergreen-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
