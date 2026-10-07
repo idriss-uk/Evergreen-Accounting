@@ -1,17 +1,17 @@
-const CACHE_NAME = 'evergreen-v5-shell-v11';
+const CACHE_NAME = 'evergreen-v5-shell-v12';
 const APP_SHELL = [
   './',
   './index.html',
   './css/app.css',
   './js/app.js',
   './js/core/state.js',
-  './js/core/storage.js',
+  './js/core/storage.js?v=receipt-storage-1',
   './js/core/ledger.js',
   './js/core/customers.js',
   './js/core/suppliers.js',
   './js/core/payments.js',
   './js/core/banking.js',
-  './js/core/receipts.js?v=expense-edit-2',
+  './js/core/receipts.js?v=receipt-storage-1',
   './js/core/reports.js',
   './js/ui/reports.js',
   './manifest.json',
