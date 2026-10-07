@@ -8,7 +8,7 @@
     <meta name="description" content="Evergreen Accounting is a local-first UK business accounting app for sales, purchases, expenses, banking, VAT and tax workflows.">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="assets/evergreen-icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="css/app.css">
+    <link rel="stylesheet" href="css/app.css?v=sidebar-1">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -160,50 +160,13 @@
     <!-- Toast Container -->
     <div id="toastContainer" style="z-index:70" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
 
-    <!-- Main Application Wrapper -->
-    <div class="flex flex-col min-h-screen">
-        
-        <!-- Header / Navigation Bar -->
-        <header class="sticky top-0 z-30 bg-white/90 dark:bg-slate-800/90 backdrop-blur border-b border-slate-200 dark:border-slate-700 shadow-sm no-print">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex items-center justify-between h-16">
-                    
-                    <!-- Logo & Brand -->
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
-                            <i class="fa-solid me-0 fa-leaf text-lg"></i>
-                        </div>
-                        <div>
-                            <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">Evergreen Accounting</span>
-                            <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-semibold ml-2 border border-emerald-200 dark:border-emerald-800">
-                                UK Business v5.0
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- System Action Controls -->
-                    <div class="flex items-center gap-3">
-                        <!-- Dark Mode Toggle -->
-                        <button id="themeToggleBtn" onclick="toggleTheme()" class="p-2.5 rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Toggle Dark/Light Mode">
-                            <i id="themeIcon" class="fa-solid fa-moon"></i>
-                        </button>
-
-                        <!-- Sandbox Status Indicator -->
-                        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-medium">
-                            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                            <span>HMRC Sandbox Demo</span>
-                        </div>
-
-                        <!-- Data Actions Menu Button -->
-                        <button onclick="switchTab('settingsTab')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-database text-brand-500"></i> Data & Settings
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Main Navigation Tabs -->
-                <nav class="flex space-x-1 sm:space-x-4 overflow-x-auto pb-2 pt-1 no-scrollbar border-t border-slate-100 dark:border-slate-800/80">
-                    <button id="tabBtn-dashboard" onclick="switchTab('dashboard')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2 active-tab">
+<aside id="evergreenSidebar" class="evergreen-sidebar no-print" aria-label="Evergreen workspace">
+ <div class="sidebar-brand"><span class="sidebar-brand-icon" aria-hidden="true"><i class="fa-solid fa-leaf"></i></span><div><strong>Evergreen</strong><span>Accounting</span></div></div>
+ <div class="sidebar-workspace"><span class="sidebar-eyebrow">YOUR BUSINESS</span><strong id="sidebarCompanyName">Company profile</strong><span>UK accounting · GBP</span></div>
+ <div class="sidebar-eyebrow sidebar-nav-heading">WORKSPACE</div>
+                 <!-- Desktop section navigation -->
+                <nav aria-label="Main sections" class="sidebar-navigation flex space-x-1 sm:space-x-4 overflow-x-auto pb-2 pt-1 no-scrollbar border-t border-slate-100 dark:border-slate-800/80">
+                    <button id="tabBtn-dashboard" aria-current="page" onclick="switchTab('dashboard')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2 active-tab">
                         <i class="fa-solid fa-gauge-high"></i> Dashboard
                     </button>
                     <button id="tabBtn-sales" onclick="switchTab('sales')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
@@ -234,11 +197,57 @@
                         <i class="fa-solid fa-gear"></i> Settings & Audit
                     </button>
                 </nav>
+ <div class="sidebar-local"><i class="fa-solid fa-database" aria-hidden="true"></i><div><strong>Saved on this device</strong><span>Keep a backup of your records.</span></div></div>
+ </aside>
+
+     <!-- Main Application Wrapper -->
+    <div class="app-shell flex flex-col min-h-screen">
+        
+        <!-- Header / Navigation Bar -->
+        <header class="app-header sticky top-0 z-30 bg-white/90 dark:bg-slate-800/90 backdrop-blur border-b border-slate-200 dark:border-slate-700 shadow-sm no-print">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    
+                    <!-- Logo & Brand -->
+                    <div class="header-brand flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+                            <i class="fa-solid me-0 fa-leaf text-lg"></i>
+                        </div>
+                        <div>
+                            <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">Evergreen Accounting</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-semibold ml-2 border border-emerald-200 dark:border-emerald-800">
+                                UK Business v5.0
+                            </span>
+                        </div>
+                    </div>
+
+<div class="desktop-workspace-heading"><span>WORKSPACE</span><strong id="workspaceSectionTitle">Dashboard</strong></div>
+                    <!-- System Action Controls -->
+                    <div class="flex items-center gap-3">
+                        <!-- Dark Mode Toggle -->
+                        <button id="themeToggleBtn" onclick="toggleTheme()" class="p-2.5 rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Toggle Dark/Light Mode">
+                            <i id="themeIcon" class="fa-solid fa-moon"></i>
+                        </button>
+
+                        <!-- Sandbox Status Indicator -->
+                        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-medium">
+                            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                            <span>HMRC Sandbox Demo</span>
+                        </div>
+
+                        <!-- Data Actions Menu Button -->
+                        <button onclick="switchTab('settingsTab')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-database text-brand-500"></i> Data & Settings
+                        </button>
+                    </div>
+                </div>
+
+
             </div>
         </header>
 
         <!-- Main Content Area -->
-        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <main class="app-main flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
             <!-- 1. DASHBOARD VIEW -->
             <section id="tab-dashboard" class="tab-content space-y-6">
@@ -1560,29 +1569,26 @@
         }
 
         function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.nav-tab').forEach(el => {
-                el.classList.remove('bg-brand-600', 'text-white', 'shadow-sm');
-                el.classList.add('text-slate-600', 'dark:text-slate-300', 'hover:bg-slate-100', 'dark:hover:bg-slate-800');
-            });
-
-            const target = document.getElementById(`tab-${tabId}`);
-            if (target) target.classList.remove('hidden');
-
-            const btn = document.getElementById(`tabBtn-${tabId}`);
-            if (btn) {
-                btn.classList.add('bg-brand-600', 'text-white', 'shadow-sm');
-                btn.classList.remove('text-slate-600', 'dark:text-slate-300', 'hover:bg-slate-100', 'dark:hover:bg-slate-800');
-            }
-
-            if (tabId === 'dashboard') renderDashboard();
-            if (tabId === 'contacts') renderContacts();
-            if (tabId === 'settingsTab') renderCompanyProfile();
-            if (tabId === 'expenses') renderExpensesTable();
-            if (tabId === 'bank') renderBankTable();
-            if (tabId === 'reports' && typeof renderReports === 'function') renderReports();
-            if (tabId === 'mtd') renderMtdBoxCalculations();
-        }
+ const target=document.getElementById('tab-'+tabId);if (!target) return;
+ document.querySelectorAll('.tab-content').forEach(element=>element.classList.add('hidden'));
+ document.querySelectorAll('.nav-tab').forEach(button=>{
+  button.classList.remove('active-tab','bg-brand-600','text-white','shadow-sm');
+  button.removeAttribute('aria-current');
+  button.classList.add('text-slate-600','dark:text-slate-300','hover:bg-slate-100','dark:hover:bg-slate-800');
+ });
+ target.classList.remove('hidden');
+ const button=document.getElementById('tabBtn-'+tabId);
+ if(button) {button.classList.add('active-tab');button.setAttribute('aria-current','page');}
+ const titles={dashboard:'Dashboard',sales:'Sales & Credit Notes',purchases:'Purchases & Debit Notes',contacts:'Customers & Suppliers',expenses:'Expenses & Receipts',bank:'Bank Reconciliation',mtd:'MTD VAT',tax:'UK Tax & Payroll',reports:'Reports',settingsTab:'Settings & Audit'};
+ document.getElementById('workspaceSectionTitle').textContent=titles[tabId] || 'Workspace';
+ if (tabId==='dashboard') renderDashboard();
+ if (tabId==='contacts') renderContacts();
+ if (tabId==='settingsTab') renderCompanyProfile();
+ if (tabId==='expenses') renderExpensesTable();
+ if (tabId==='bank') renderBankTable();
+ if (tabId==='reports' && typeof renderReports==='function') renderReports();
+ if (tabId==='mtd') renderMtdBoxCalculations();
+}
 
         function openMobileSections() {
             document.getElementById('mobileSectionsModal').classList.remove('hidden');
@@ -1842,6 +1848,7 @@ function renderCompanyLogo(containerId,value) {
 }
 function renderCompanyProfile() {
  const profile=appState.companyProfile || {};
+ document.getElementById('sidebarCompanyName').textContent=profile.name || 'Your business';
  document.getElementById('cfgCompName').value=profile.name || '';
  document.getElementById('cfgVrn').value=profile.vrn || '';
  document.getElementById('cfgAddress').value=profile.address || '';
