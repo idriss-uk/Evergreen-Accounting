@@ -1,0 +1,47 @@
+'use strict';
+// Run with: node tests/expense-edit.test.cjs
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const { randomUUID } = require('node:crypto');
+const context = {window:{},crypto:{randomUUID},console};
+for (const file of ['ledger','receipts','reports']) {
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../js/core',file+'.js'),'utf8'),context);
+}
+const {EvergreenReceipts:api,EvergreenLedger:ledger,EvergreenReports:reports} = context.window;
+const original = api.create({merchant:'Adobe',date:'2026-10-07',category:'Software & IT',netAmount:100,vatTreatment:'20',payMethod:'Company Card',attachment:'data:image/jpeg;base64,OLD',fileName:'old.jpg',receipt:{fileName:'old.jpg'}});
+original.createdAt = '2026-10-01T10:00:00Z';
+const originalJournal = ledger.fromDocument('Expense',original);
+const state = {expenses:[original],invoices:[],bills:[],payments:[],ledgerEntries:[originalJournal,{id:'unrelated',sourceType:'Invoice',sourceId:'other',lines:[]}]};
+const edited = api.revise(original,{netAmount:50,vatTreatment:'5',merchant:'New supplier',category:'Office Supplies'});
+api.applyExpense(state,edited,ledger);
+assert.equal(edited.id,original.id);
+assert.equal(edited.createdAt,original.createdAt);
+assert.equal(edited.attachment,original.attachment);
+assert.equal(edited.grossAmount,52.5);
+assert.equal(state.expenses.length,1);
+assert.equal(state.ledgerEntries.length,2);
+assert.equal(state.ledgerEntries[1].id,originalJournal.id);
+assert.equal(ledger.getTotals(state.ledgerEntries[1]).debit,52.5);
+assert.equal(ledger.getTotals(state.ledgerEntries[1]).credit,52.5);
+assert.equal(api.duplicates(edited,state.expenses).length,0);
+assert.equal(reports.profitAndLoss(state).totalExpenses,50);
+const replacement = api.revise(edited,{attachment:'data:image/png;base64,NEW',fileName:'new.png',receipt:{fileName:'new.png'}});
+api.applyExpense(state,replacement,ledger);
+const removed = api.revise(replacement,{attachment:null,fileName:null,receipt:null});
+api.applyExpense(state,removed,ledger);
+assert.equal(removed.attachment,null);
+assert.equal(removed.revisions.length,3);
+assert.equal(removed.revisions[1].receiptChanged,true);
+assert.equal(state.expenses.length,1);
+assert.equal(reports.buildCanonicalLedger(state).filter(entry=>entry.sourceType==='Expense').length,1);
+const snapshot = JSON.stringify(state);
+assert.throws(()=>api.revise(removed,{netAmount:-1}));
+assert.equal(JSON.stringify(state),snapshot);
+assert.equal(api.revise({...original,category:'Legacy category'},{netAmount:10}).category,'Legacy category');
+const newExpense = api.create({...original,id:undefined,attachment:null,receipt:null});
+api.applyExpense(state,newExpense,ledger);
+assert.equal(state.expenses.length,2);
+assert.equal(api.duplicates(newExpense,state.expenses).length,0);
+console.log('Expense editing and ledger regression checks passed.');
