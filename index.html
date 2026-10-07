@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LedgerFlow MTD - Ultimate Business & Accounting Suite</title>
+    <title>Evergreen Accounting — Simple UK Business Accounting</title>
+    <meta name="theme-color" content="#556B2F">
+    <meta name="description" content="Evergreen Accounting is a local-first UK business accounting app for sales, purchases, expenses, banking, VAT and tax workflows.">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="assets/evergreen-icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="css/app.css">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -13,12 +18,12 @@
                 extend: {
                     colors: {
                         brand: {
-                            50: '#f0f7ff',
-                            100: '#e0effe',
-                            500: '#0284c7',
-                            600: '#0369a1',
-                            700: '#075985',
-                            900: '#0c4a6e',
+                            50: '#F5F7F0',
+                            100: '#E7ECD9',
+                            500: '#718355',
+                            600: '#556B2F',
+                            700: '#3F5223',
+                            900: '#243020',
                         },
                         emeraldCustom: '#10b981',
                         roseCustom: '#f43f5e'
@@ -78,13 +83,13 @@
                     
                     <!-- Logo & Brand -->
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
                             <i class="fa-solid me-0 fa-chart-line text-lg"></i>
                         </div>
                         <div>
-                            <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-brand-600 to-indigo-600 bg-clip-text text-transparent">LedgerFlow MTD</span>
+                            <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">Evergreen Accounting</span>
                             <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-semibold ml-2 border border-emerald-200 dark:border-emerald-800">
-                                UK Enterprise v4.5
+                                UK Business v5.0
                             </span>
                         </div>
                     </div>
@@ -99,7 +104,7 @@
                         <!-- Sandbox Status Indicator -->
                         <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-medium">
                             <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                            <span>HMRC Sandbox Connected</span>
+                            <span>HMRC Sandbox Demo</span>
                         </div>
 
                         <!-- Data Actions Menu Button -->
@@ -2046,7 +2051,7 @@
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
             const downloadAnchor = document.createElement('a');
             downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `LedgerFlow_Backup_${new Date().toISOString().split('T')[0]}.json`);
+            downloadAnchor.setAttribute("download", `Evergreen_Backup_${new Date().toISOString().split('T')[0]}.json`);
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();
             downloadAnchor.remove();
@@ -2075,7 +2080,7 @@
 
         function exportAuditTrail() {
             const auditData = {
-                header: { system: "LedgerFlow MTD", notice70022Compliant: true, timestamp: new Date().toISOString() },
+                header: { system: "Evergreen Accounting", notice70022Compliant: true, timestamp: new Date().toISOString() },
                 mtdCalculation: calculateMtd9Boxes(),
                 transactionsCount: appState.invoices.length + appState.bills.length + appState.expenses.length
             };
@@ -2088,5 +2093,13 @@
             dl.remove();
         }
     </script>
+    <nav class="mobile-bottom-nav no-print" aria-label="Mobile navigation">
+        <button onclick="switchTab('dashboard')" aria-label="Home"><i class="fa-solid fa-house"></i><span>Home</span></button>
+        <button onclick="switchTab('sales')" aria-label="Sales"><i class="fa-solid fa-file-invoice-dollar"></i><span>Sales</span></button>
+        <button class="mobile-primary-action" onclick="openInvoiceModal('Invoice')" aria-label="Create invoice"><i class="fa-solid fa-plus"></i><span>New</span></button>
+        <button onclick="switchTab('bank')" aria-label="Banking"><i class="fa-solid fa-building-columns"></i><span>Banking</span></button>
+        <button onclick="switchTab('settingsTab')" aria-label="More"><i class="fa-solid fa-ellipsis"></i><span>More</span></button>
+    </nav>
+    <script src="js/app.js"></script>
 </body>
 </html>1
