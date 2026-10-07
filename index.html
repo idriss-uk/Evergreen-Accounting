@@ -70,6 +70,10 @@
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full flex flex-col transition-colors duration-200">
 
+<div id="storageBusy" role="status" aria-live="polite" class="fixed inset-0 flex items-center justify-center bg-slate-900/30" style="z-index:80">
+ <div id="storageBusyMessage" class="bg-white text-brand-700 rounded-xl p-5 shadow-xl max-w-sm">Opening local records…</div>
+ </div>
+ <p id="localStorageStatus" class="text-xs text-center text-slate-500 p-2">Records stay on this device. Backups include receipts.</p>
     <!-- Toast Container -->
     <div id="toastContainer" style="z-index:70" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
 
@@ -1128,7 +1132,7 @@
  <p class="text-slate-500">Paid business expenses in GBP. Enter receipt figures manually and review VAT. OCR / AI extraction is not available.</p>
                 <!-- File Attachment Area -->
                 <div>
-                    <label class="block font-medium mb-1">Receipt Attachment (JPG, PNG, WEBP or PDF, maximum 2 MB)</label>
+                    <label class="block font-medium mb-1">Receipt Attachment (photos up to 20 MB resized automatically; PDFs up to 2 MB)</label>
                     <div class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-4 text-center bg-slate-50 dark:bg-slate-900 hover:border-emerald-500 transition cursor-pointer" onclick="document.getElementById('expFileInput').click()">
                         <input type="file" id="expFileInput" accept="image/jpeg,image/png,image/webp,application/pdf" class="hidden" onchange="handleExpenseFileSelected(event)">
                         <i class="fa-solid fa-cloud-arrow-up text-2xl text-emerald-500 mb-1"></i>
@@ -1348,13 +1352,24 @@
         };
 
         let appState = {};
+        let stateSaveQueue = Promise.resolve();
+        let pendingStateSaves = 0;
+        let lastSavedState = null;
         let dashboardChartInstance = null;
         let optimizerChartInstance = null;
         let pendingExpenseFileBase64 = null;
         let pendingExpenseFileName = null;
 
+        window.addEventListener('beforeunload', event => {
+            if (pendingStateSaves) {event.preventDefault();event.returnValue='';}
+        });
+
         window.onload = async function() {
-            await loadState();
+            try {await loadState();} catch(error) {
+                document.getElementById('storageBusyMessage').textContent='Unable to open local records: '+error.message+' Reload Evergreen before continuing.';
+                document.getElementById('storageBusy').classList.remove('hidden');
+                return;
+            }
             renderDashboard();
             renderSalesTable();
             renderPurchasesTable();
@@ -1369,65 +1384,67 @@
         };
 
         async function loadState() {
-            const stateApi = window.EvergreenState;
-            const storageApi = window.EvergreenStorage;
-            const primaryKey = stateApi?.STORAGE_KEY || 'evergreen_accounting_db_v5';
+ const stateApi=window.EvergreenState, storageApi=window.EvergreenStorage;
+ const key=stateApi?.STORAGE_KEY || 'evergreen_accounting_db_v5';
+ if (!storageApi?.splitReceipts || !storageApi?.hydrateState) throw Error('The local storage update is still loading. Close and reopen Evergreen, then refresh.');
+ let indexed=null, local=null, readError=null;
+ try {indexed=storageApi ? await storageApi.loadSnapshot() : null;} catch(error) {readError=error;}
+ try {
+  for (const savedKey of [key,...(stateApi?.LEGACY_STORAGE_KEYS || ['ledgerflow_mtd_db'])]) {
+   const raw=localStorage.getItem(savedKey);
+   if (!raw) continue;
+   try {local=JSON.parse(raw);break;} catch(error) {readError=error;}
+  }
+ } catch(error) {readError=error;}
+ const revision=value=>Number(value?.metadata?.saveRevision) || Date.parse(value?.metadata?.updatedAt) || 0;
+ let selected=indexed && (!local || revision(indexed)>=revision(local)) ? indexed : local;
+ if (selected && (selected.expenses || []).some(expense=>expense.attachmentRef)) {
+  if (!storageApi?.hydrateState) throw Error('Receipt storage update is unavailable. Refresh Evergreen before continuing.');
+  selected=await storageApi.hydrateState(selected);
+ }
+ if (!selected && readError) throw readError;
+ appState=stateApi ? stateApi.normalize(selected || DEFAULT_DEMO_DATA) : JSON.parse(JSON.stringify(selected || DEFAULT_DEMO_DATA));
+ lastSavedState=JSON.parse(JSON.stringify(appState));
+ await saveState();
+}
 
-            try {
-                const indexedSnapshot = storageApi ? await storageApi.loadSnapshot() : null;
-                if (indexedSnapshot) {
-                    appState = stateApi ? stateApi.normalize(indexedSnapshot) : indexedSnapshot;
-                    localStorage.setItem(primaryKey, JSON.stringify(appState));
-                    return;
-                }
-            } catch (error) {
-                console.warn('Evergreen Accounting: IndexedDB load failed, using local fallback.', error);
-            }
-
-            let parsedState = null;
-            const primarySaved = localStorage.getItem(primaryKey);
-
-            if (primarySaved) {
-                try { parsedState = JSON.parse(primarySaved); }
-                catch (error) { console.warn('Evergreen Accounting: primary local state was invalid.', error); }
-            }
-
-            if (!parsedState) {
-                const legacyKeys = stateApi?.LEGACY_STORAGE_KEYS || ['ledgerflow_mtd_db'];
-                for (const legacyKey of legacyKeys) {
-                    const legacySaved = localStorage.getItem(legacyKey);
-                    if (!legacySaved) continue;
-                    try {
-                        parsedState = JSON.parse(legacySaved);
-                        console.info(`Evergreen Accounting: migrated local data from ${legacyKey}`);
-                        break;
-                    } catch (error) {
-                        console.warn(`Evergreen Accounting: unable to migrate ${legacyKey}`, error);
-                    }
-                }
-            }
-
-            appState = stateApi
-                ? stateApi.normalize(parsedState || DEFAULT_DEMO_DATA)
-                : JSON.parse(JSON.stringify(parsedState || DEFAULT_DEMO_DATA));
-
-            saveState();
-        }
-
-        function saveState() {
-            const stateApi = window.EvergreenState;
-            const storageApi = window.EvergreenStorage;
-            const primaryKey = stateApi?.STORAGE_KEY || 'evergreen_accounting_db_v5';
-
-            appState = stateApi ? stateApi.normalize(appState) : appState;
-            localStorage.setItem(primaryKey, JSON.stringify(appState));
-
-            if (storageApi) {
-                storageApi.saveSnapshot(appState).catch((error) => {
-                    console.warn('Evergreen Accounting: IndexedDB save failed; local fallback remains available.', error);
-                });
-            }
-        }
+        async function saveState() {
+ const stateApi=window.EvergreenState, storageApi=window.EvergreenStorage;
+ const key=stateApi?.STORAGE_KEY || 'evergreen_accounting_db_v5';
+ appState=stateApi ? stateApi.normalize(appState) : appState;
+ appState.metadata ||= {};
+ appState.metadata.saveRevision=Math.max(Date.now(),(Number(appState.metadata.saveRevision)||0)+1);
+ const snapshot=JSON.parse(JSON.stringify(appState));
+ pendingStateSaves++;
+ document.getElementById('storageBusyMessage').textContent='Saving locally…';
+ document.getElementById('storageBusy').classList.remove('hidden');
+ const persist=async()=>{
+  try {
+   let durable=false;
+   if (storageApi?.saveSnapshot) {
+    try {durable=await storageApi.saveSnapshot(snapshot);} catch(error) {console.warn('Local database unavailable; trying complete browser fallback.',error);}
+   }
+   if (durable) {
+    try {localStorage.setItem(key,JSON.stringify(storageApi.splitReceipts(snapshot).state));}
+    catch(error) {console.warn('Browser fallback unavailable; complete records remain in the local database.',error);}
+   } else {
+    localStorage.setItem(key,JSON.stringify(snapshot));
+   }
+   lastSavedState=JSON.parse(JSON.stringify(snapshot));
+   document.getElementById('localStorageStatus').textContent=durable ? 'Records and receipts saved on this device. Receipts use dedicated local storage.' : 'Browser fallback active. Back up regularly; receipt space is limited.';
+  } catch(error) {
+   if (lastSavedState) appState=JSON.parse(JSON.stringify(lastSavedState));
+   showToast('Unable to save locally. Existing records were preserved. Back up your data and retry.','error');
+   throw error;
+  } finally {
+   pendingStateSaves--;
+   if (!pendingStateSaves) document.getElementById('storageBusy').classList.add('hidden');
+  }
+ };
+ const result=stateSaveQueue.then(persist,persist);
+ stateSaveQueue=result.catch(()=>{});
+ return result;
+}
 
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer');
@@ -1536,7 +1553,7 @@
             const ctx = document.getElementById('dashboardChart').getContext('2d');
             if (dashboardChartInstance) dashboardChartInstance.destroy();
 
-            dashboardChartInstance = new Chart(ctx, {
+            if (typeof Chart === 'function') dashboardChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: ['Net Sales', 'Credit Notes', 'Bills & Exp', 'Net Profit'],
@@ -1665,7 +1682,7 @@
             document.getElementById('customerModal').classList.remove('hidden');
         }
 
-        function saveCustomer(event) {
+        async function saveCustomer(event) {
             event.preventDefault();
             try {
                 window.EvergreenCustomers.upsertCustomer(appState, {
@@ -1675,7 +1692,7 @@
                     phone: document.getElementById('customerPhone').value,
                     address: document.getElementById('customerAddress').value
                 });
-                saveState();
+                await saveState();
                 closeModal('customerModal');
                 renderContacts();
                 showToast('Customer saved.');
@@ -1695,7 +1712,7 @@
             document.getElementById('supplierModal').classList.remove('hidden');
         }
 
-        function saveSupplier(event) {
+        async function saveSupplier(event) {
             event.preventDefault();
             try {
                 window.EvergreenSuppliers.upsertSupplier(appState, {
@@ -1705,7 +1722,7 @@
                     phone: document.getElementById('supplierPhone').value,
                     address: document.getElementById('supplierAddress').value
                 });
-                saveState();
+                await saveState();
                 closeModal('supplierModal');
                 renderContacts();
                 showToast('Supplier saved.');
@@ -1764,7 +1781,7 @@
             document.getElementById('invCalcGross').innerText = `£${(totalNet + totalVat).toFixed(2)}`;
         }
 
-        function saveInvoice(e) {
+        async function saveInvoice(e) {
             e.preventDefault();
             const docType = document.getElementById('invDocType').value;
             const items = [];
@@ -1806,7 +1823,7 @@
             if (window.EvergreenLedger) {
                 appState.ledgerEntries.push(window.EvergreenLedger.fromDocument(docType, doc));
             }
-            saveState();
+            await saveState();
             closeModal('invoiceModal');
             renderSalesTable();
             renderDashboard();
@@ -1898,7 +1915,7 @@
             document.getElementById('billCalcGross').innerText = `£${(totalNet + totalVat).toFixed(2)}`;
         }
 
-        function saveBill(e) {
+        async function saveBill(e) {
             e.preventDefault();
             const docType = document.getElementById('billDocType').value;
             const items = [];
@@ -1940,7 +1957,7 @@
             if (window.EvergreenLedger) {
                 appState.ledgerEntries.push(window.EvergreenLedger.fromDocument(docType, doc));
             }
-            saveState();
+            await saveState();
             closeModal('billModal');
             renderPurchasesTable();
             renderDashboard();
@@ -2019,18 +2036,15 @@ function removeExpenseReceipt() {
  const version = window.expUploadVersion = (window.expUploadVersion || 0) + 1;
  const previousReceipt = {data:pendingExpenseFileBase64,name:pendingExpenseFileName,metadata:window.expReceipt};
  try {
-  EvergreenReceipts.validateFile(file);
+  if (typeof EvergreenReceipts.prepareFile !== 'function') throw Error('Receipt update is loading. Reopen and refresh Evergreen.');
   window.expUploading = true;
   document.getElementById('expFileName').textContent = 'Reading receipt…';
-  const data = await new Promise((resolve,reject) => {
-   const reader = new FileReader(); reader.onload = () => resolve(reader.result);
-   reader.onerror = () => reject(Error('Unable to read receipt.')); reader.onabort = () => reject(Error('Receipt reading cancelled.'));
-   reader.readAsDataURL(file);
-  });
+  const prepared = await EvergreenReceipts.prepareFile(file);
+  const data = prepared.data;
   if (version !== window.expUploadVersion) return;
-  pendingExpenseFileBase64 = data; pendingExpenseFileName = file.name;
-  window.expReceipt = {schemaVersion:1,fileName:file.name,mimeType:file.type,sizeBytes:file.size,capturedAt:new Date().toISOString(),source:e.target.id === 'expCameraInput' ? 'camera' : 'upload',extraction:{status:'not_available',reviewRequired:true}};
-  document.getElementById('expFileName').textContent = file.name + ' · ' + Math.ceil(file.size / 1024) + ' KB · Ready';
+  pendingExpenseFileBase64 = data; pendingExpenseFileName = prepared.metadata.fileName;
+  window.expReceipt = {...prepared.metadata,schemaVersion:1,capturedAt:new Date().toISOString(),source:e.target.id === 'expCameraInput' ? 'camera' : 'upload',extraction:{status:'not_available',reviewRequired:true}};
+  document.getElementById('expFileName').textContent = prepared.metadata.fileName + ' · ' + Math.ceil(prepared.metadata.sizeBytes / 1024) + ' KB · ' + (prepared.metadata.resized ? 'Resized and ready' : 'Ready');
  } catch(error) {
   if (version === window.expUploadVersion) {pendingExpenseFileBase64 = previousReceipt.data; pendingExpenseFileName = previousReceipt.name; window.expReceipt = previousReceipt.metadata; document.getElementById('expFileName').textContent = error.message + (previousReceipt.data ? ' Existing receipt kept.' : ''); showToast(error.message,'error');}
  } finally {if (version === window.expUploadVersion) window.expUploading = false;}
@@ -2046,7 +2060,7 @@ function removeExpenseReceipt() {
             document.getElementById('expGrossVal').innerText = `£${(net + vat).toFixed(2)}`;
         }
 
-        function saveExpense(e) {
+        async function saveExpense(e) {
  e.preventDefault();
  try {
   if (typeof window.EvergreenReceipts?.applyExpense !== 'function' || typeof window.EvergreenReceipts?.revise !== 'function') throw Error('An app update is still loading. Close and reopen Evergreen, then refresh. Your saved records are unchanged.');
@@ -2069,7 +2083,7 @@ function removeExpenseReceipt() {
     if (supplier) exp.supplierId = supplier.id;
    }
    EvergreenReceipts.applyExpense(appState,exp,window.EvergreenLedger);
-   saveState();
+   await saveState();
   } catch(error) {appState = previous; throw error;}
   closeModal('expenseModal'); window.editingExpenseId = null;
   switchTab('expenses'); window.scrollTo({top: 0, behavior: 'auto'});
@@ -2165,24 +2179,24 @@ function suggestExpenseCategory() {
             }
         }
 
-        function saveBankOpeningBalance() {
+        async function saveBankOpeningBalance() {
             appState.bankReconciliation = appState.bankReconciliation || {};
             appState.bankReconciliation.openingBalance = Number(document.getElementById('bankOpeningBalance').value) || 0;
-            saveState();
+            await saveState();
             renderBankTable();
         }
 
-        function updateBankCategory(txId, category) {
+        async function updateBankCategory(txId, category) {
             const tx = appState.bankTransactions.find(item => item.id === txId);
             if (!tx) return;
             tx.category = category;
-            saveState();
+            await saveState();
         }
 
-        function triggerAutoMatch() {
+        async function triggerAutoMatch() {
             try {
                 const result = window.EvergreenBanking.runAutoMatch(appState);
-                saveState();
+                await saveState();
                 renderBankTable();
                 renderSalesTable();
                 renderPurchasesTable();
@@ -2194,10 +2208,10 @@ function suggestExpenseCategory() {
             }
         }
 
-        function acceptBankSuggestion(txId) {
+        async function acceptBankSuggestion(txId) {
             try {
                 window.EvergreenBanking.acceptSuggestion(appState, txId);
-                saveState();
+                await saveState();
                 renderBankTable();
                 renderSalesTable();
                 renderPurchasesTable();
@@ -2228,7 +2242,7 @@ function suggestExpenseCategory() {
             document.getElementById('bankMatchModal').classList.remove('hidden');
         }
 
-        function saveManualBankMatch(event) {
+        async function saveManualBankMatch(event) {
             event.preventDefault();
             const txId = document.getElementById('bankManualTxId').value;
             const value = document.getElementById('bankManualDocument').value;
@@ -2240,7 +2254,7 @@ function suggestExpenseCategory() {
             const [type, id] = value.split('|');
             try {
                 window.EvergreenBanking.matchTransaction(appState, txId, type, id);
-                saveState();
+                await saveState();
                 closeModal('bankMatchModal');
                 renderBankTable();
                 renderSalesTable();
@@ -2253,16 +2267,16 @@ function suggestExpenseCategory() {
             }
         }
 
-        function handleBankCsvUpload(event) {
+        async function handleBankCsvUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(evt) {
+            reader.onload = async function(evt) {
                 try {
                     const rows = window.EvergreenBanking.parseCsv(evt.target.result);
                     const result = window.EvergreenBanking.importRows(appState, rows);
-                    saveState();
+                    await saveState();
                     renderBankTable();
                     showToast(`Imported ${result.imported} transactions. ${result.duplicates} duplicate rows skipped.`);
                 } catch (error) {
@@ -2433,7 +2447,7 @@ function suggestExpenseCategory() {
             const ctx = document.getElementById('optimizerChart').getContext('2d');
             if (optimizerChartInstance) optimizerChartInstance.destroy();
 
-            optimizerChartInstance = new Chart(ctx, {
+            if (typeof Chart === 'function') optimizerChartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: ['Director Salary', 'Net Dividend', 'Total Taxes (CT + Div)'],
@@ -2476,7 +2490,7 @@ function suggestExpenseCategory() {
             document.getElementById('cisModal').classList.remove('hidden');
         }
 
-        function saveCisPayment(e) {
+        async function saveCisPayment(e) {
             e.preventDefault();
             const gross = parseFloat(document.getElementById('cisGross').value) || 0;
             const rate = parseFloat(document.getElementById('cisRate').value) || 0;
@@ -2494,7 +2508,7 @@ function suggestExpenseCategory() {
             };
 
             appState.cisRecords.unshift(record);
-            saveState();
+            await saveState();
             closeModal('cisModal');
             renderCisTable();
             showToast('CIS subcontractor deduction logged!');
@@ -2595,7 +2609,7 @@ function suggestExpenseCategory() {
             `).join('');
         }
 
-        function saveDocumentPayment(event) {
+        async function saveDocumentPayment(event) {
             event.preventDefault();
             try {
                 const documentType = document.getElementById('paymentDocType').value;
@@ -2608,7 +2622,7 @@ function suggestExpenseCategory() {
                     method: document.getElementById('paymentMethod').value,
                     reference: document.getElementById('paymentReference').value
                 });
-                saveState();
+                await saveState();
                 closeModal('paymentModal');
                 renderSalesTable();
                 renderPurchasesTable();
@@ -2620,7 +2634,7 @@ function suggestExpenseCategory() {
             }
         }
 
-        function deleteDoc(type, id) {
+        async function deleteDoc(type, id) {
             if (type === 'sales') appState.invoices = appState.invoices.filter(i => i.id !== id);
             if (type === 'purchases') appState.bills = appState.bills.filter(b => b.id !== id);
             if (type === 'expenses') appState.expenses = appState.expenses.filter(e => e.id !== id);
@@ -2628,7 +2642,7 @@ function suggestExpenseCategory() {
             appState.payments = (appState.payments || []).filter(payment => payment.documentId !== id);
             appState.ledgerEntries = (appState.ledgerEntries || []).filter(entry => entry.sourceId !== id);
 
-            saveState();
+            await saveState();
             renderSalesTable();
             renderPurchasesTable();
             renderExpensesTable();
@@ -2661,36 +2675,34 @@ function suggestExpenseCategory() {
             });
         }
 
-        function backupDatabase() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `Evergreen_Backup_${new Date().toISOString().split('T')[0]}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-        }
+        async function backupDatabase() {
+ try {
+  await stateSaveQueue;
+  const blob=new Blob([JSON.stringify(appState,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob), anchor=document.createElement('a');
+  anchor.href=url;anchor.download='Evergreen_Backup_'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(anchor);anchor.click();anchor.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+ } catch(error) {showToast('Unable to create backup: '+error.message,'error');}
+}
 
-        function restoreDatabase(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+        async function restoreDatabase(e) {
+ const file=e.target.files[0];if (!file) return;
+ const previous=JSON.parse(JSON.stringify(appState));
+ try {
+  const restored=JSON.parse(await file.text());
+  if (!restored || typeof restored!=='object' || Array.isArray(restored) || !['invoices','bills','expenses'].every(key=>Array.isArray(restored[key]))) throw Error('Choose a complete Evergreen JSON backup.');
+  if (restored.expenses.some(expense=>expense.attachmentRef)) throw Error('This backup is missing receipt files. Export a complete backup from the original device.');
+  appState=restored;await saveState();location.reload();
+ } catch(error) {appState=previous;showToast(error.message || 'Unable to restore backup. Existing records remain unchanged.','error');}
+ finally {e.target.value='';}
+}
 
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                try {
-                    appState = JSON.parse(evt.target.result);
-                    saveState();
-                    location.reload();
-                } catch(err) { showToast('Invalid backup JSON file!', 'error'); }
-            };
-            reader.readAsText(file);
-        }
-
-        function resetToSampleData() {
-            appState = JSON.parse(JSON.stringify(DEFAULT_DEMO_DATA));
-            saveState();
-            location.reload();
-        }
+        async function resetToSampleData() {
+ const previous=JSON.parse(JSON.stringify(appState));
+ try {appState=JSON.parse(JSON.stringify(DEFAULT_DEMO_DATA));await saveState();location.reload();}
+ catch(error) {appState=previous;showToast('Unable to reset data. Existing records remain unchanged.','error');}
+}
 
         function exportAuditTrail() {
             const auditData = {
@@ -2732,13 +2744,13 @@ function suggestExpenseCategory() {
         <button onclick="openMobileSections()" aria-label="More sections"><i class="fa-solid fa-ellipsis"></i><span>More</span></button>
     </nav>
     <script src="js/core/state.js"></script>
-    <script src="js/core/storage.js"></script>
+    <script src="js/core/storage.js?v=receipt-storage-1"></script>
     <script src="js/core/ledger.js"></script>
     <script src="js/core/customers.js"></script>
     <script src="js/core/suppliers.js"></script>
     <script src="js/core/payments.js"></script>
     <script src="js/core/banking.js"></script>
-    <script src="js/core/receipts.js?v=expense-edit-2"></script>
+    <script src="js/core/receipts.js?v=receipt-storage-1"></script>
     <script src="js/core/reports.js"></script>
     <script src="js/ui/reports.js"></script>
     <script src="js/app.js"></script>
