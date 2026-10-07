@@ -14,6 +14,11 @@
     return (state.suppliers || []).find((supplier) => supplier.name.toLowerCase() === key) || null;
   }
 
+  function resolveSupplier(state, supplierRef) {
+    if (!supplierRef) return null;
+    return findById(state, supplierRef) || findByName(state, supplierRef);
+  }
+
   function upsertSupplier(state, input = {}) {
     const normalizedName = cleanName(input.name);
     if (!normalizedName) throw new Error('Supplier name is required');
@@ -43,13 +48,21 @@
   }
 
   function ensureSupplier(state, name, details = {}) {
+    const existing = findByName(state, name);
+    if (existing) return existing;
     return upsertSupplier(state, { name, ...details });
   }
 
-  function outstandingBalance(state, supplierName) {
-    const name = cleanName(supplierName).toLowerCase();
+  function outstandingBalance(state, supplierRef) {
+    const supplier = resolveSupplier(state, supplierRef);
+    if (!supplier) return 0;
+    const name = supplier.name.toLowerCase();
+
     return (state.bills || [])
-      .filter((bill) => bill.type === 'Bill' && bill.supplier?.toLowerCase() === name)
+      .filter((bill) =>
+        bill.type === 'Bill' &&
+        (bill.supplierId === supplier.id || (!bill.supplierId && bill.supplier?.toLowerCase() === name))
+      )
       .reduce((total, bill) => {
         const amount = window.EvergreenPayments
           ? window.EvergreenPayments.outstandingAmount(state, 'Bill', bill.id)
@@ -58,14 +71,20 @@
       }, 0);
   }
 
-  function purchaseCount(state, supplierName) {
-    const name = cleanName(supplierName).toLowerCase();
-    return (state.bills || []).filter((bill) => bill.supplier?.toLowerCase() === name).length;
+  function purchaseCount(state, supplierRef) {
+    const supplier = resolveSupplier(state, supplierRef);
+    if (!supplier) return 0;
+    const name = supplier.name.toLowerCase();
+
+    return (state.bills || []).filter((bill) =>
+      bill.supplierId === supplier.id || (!bill.supplierId && bill.supplier?.toLowerCase() === name)
+    ).length;
   }
 
   window.EvergreenSuppliers = Object.freeze({
     findById,
     findByName,
+    resolveSupplier,
     upsertSupplier,
     ensureSupplier,
     outstandingBalance,
