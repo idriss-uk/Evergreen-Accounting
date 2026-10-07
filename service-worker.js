@@ -1,4 +1,4 @@
-const CACHE_NAME = 'evergreen-v5-shell-v10';
+const CACHE_NAME = 'evergreen-v5-shell-v11';
 const APP_SHELL = [
   './',
   './index.html',
@@ -11,7 +11,7 @@ const APP_SHELL = [
   './js/core/suppliers.js',
   './js/core/payments.js',
   './js/core/banking.js',
-  './js/core/receipts.js',
+  './js/core/receipts.js?v=expense-edit-2',
   './js/core/reports.js',
   './js/ui/reports.js',
   './manifest.json',
