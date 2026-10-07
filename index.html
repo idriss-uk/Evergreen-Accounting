@@ -1137,11 +1137,12 @@
                     </div>
                 </div>
 
+<button type="button" onclick="removeExpenseReceipt()" class="px-3 py-2 text-brand-700 dark:text-brand-300 underline">Remove receipt</button>
 <input type="file" id="expCameraInput" accept="image/jpeg,image/png,image/webp" capture="environment" class="hidden" onchange="handleExpenseFileSelected(event)">
  <button type="button" onclick="document.getElementById('expCameraInput').click()" class="px-4 py-3 bg-brand-600 text-white rounded-xl">Take receipt photo</button>
                 <div class="expense-actions flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
                     <button type="button" onclick="closeModal('expenseModal')" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200">Cancel</button>
-                    <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Save Expense Entry</button>
+                    <button id="expenseSaveButton" type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Save Expense Entry</button>
                 </div>
             </form>
         </div>
@@ -1966,29 +1967,57 @@
                         ${exp.attachment ? `<button onclick="viewReceipt('${exp.id}')" class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-semibold text-[10px] hover:underline flex items-center gap-1 mx-auto"><i class="fa-solid fa-paperclip"></i> View Receipt</button>` : `<span class="text-slate-400">None</span>`}
                     </td>
                     <td class="p-4 text-right">
+                        <button type="button" class="px-3 py-2 text-brand-700 dark:text-brand-300 font-semibold" data-edit-expense>Edit</button>
                         <button onclick="deleteDoc('expenses', '${exp.id}')" class="p-1.5 text-slate-500 hover:text-rose-600"><i class="fa-solid fa-trash text-sm"></i></button>
                     </td>
                 `;
+                tr.querySelector('[data-edit-expense]').onclick = () => openExpenseModal(exp.id);
                 tbody.appendChild(tr);
             });
         }
 
-        function openExpenseModal() {
+        function openExpenseModal(expenseId = null) {
+ const existing = expenseId ? appState.expenses.find(item => item.id === expenseId) : null;
+ if (expenseId && !existing) {showToast('Expense no longer exists.','error'); return;}
+ window.editingExpenseId = existing ? existing.id : null;
  document.getElementById('expenseForm').reset();
- document.getElementById('expDate').value = new Date().toISOString().slice(0,10);
- pendingExpenseFileBase64 = null; pendingExpenseFileName = null;
- window.expReceipt = null; window.expUploadVersion = (window.expUploadVersion || 0) + 1; window.expUploading = false;
- document.getElementById('expFileName').textContent = 'Choose a receipt (optional)';
+ document.querySelectorAll('#expCategory option[data-legacy], #expPayMethod option[data-legacy]').forEach(option => option.remove());
+ document.getElementById('expenseModalTitle').textContent = existing ? 'Edit Expense & Receipt' : 'Log Operational Expense & Receipt';
+ document.getElementById('expenseSaveButton').textContent = existing ? 'Save Changes' : 'Save Expense Entry';
+ document.getElementById('expDate').value = existing?.date || new Date().toISOString().slice(0,10);
+ if (existing) {
+  if (!EvergreenReceipts.categories.includes(existing.category)) {
+   const option = document.createElement('option'); option.value = existing.category; option.textContent = existing.category; option.dataset.legacy = 'true';
+   document.getElementById('expCategory').appendChild(option);
+  }
+  const fields = {expMerchant:existing.merchant,expCategory:existing.category,expNet:existing.netAmount,expVatRate:existing.vatTreatment || String(existing.vatRate ?? 0),expPayMethod:existing.payMethod || 'Company Card',expReference:existing.reference || '',expNotes:existing.notes || ''};
+  document.querySelectorAll('#expPayMethod option[data-legacy]').forEach(option => option.remove());
+  if (!['Company Card','Bank Transfer'].includes(fields.expPayMethod)) {
+   const option = document.createElement('option'); option.value = fields.expPayMethod; option.textContent = fields.expPayMethod; option.dataset.legacy = 'true';
+   document.getElementById('expPayMethod').appendChild(option);
+  }
+  Object.entries(fields).forEach(([id,value]) => document.getElementById(id).value = value);
+ }
+ pendingExpenseFileBase64 = existing?.attachment || null; pendingExpenseFileName = existing?.fileName || null;
+ window.expReceipt = existing?.receipt || null; window.expUploadVersion = (window.expUploadVersion || 0) + 1; window.expUploading = false;
+ document.getElementById('expFileName').textContent = pendingExpenseFileBase64 ? (pendingExpenseFileName || 'Existing receipt') + ' · Kept unless replaced or removed' : 'Choose a receipt (optional)';
  document.getElementById('expCategoryHint').textContent = '';
  recalcExpenseTotal();
  document.getElementById('expenseModal').classList.remove('hidden');
  document.getElementById('expenseForm').scrollTop = 0;
 }
+function removeExpenseReceipt() {
+ window.expUploadVersion = (window.expUploadVersion || 0) + 1;
+ window.expUploading = false; window.expReceipt = null;
+ pendingExpenseFileBase64 = null; pendingExpenseFileName = null;
+ document.getElementById('expFileInput').value = ''; document.getElementById('expCameraInput').value = '';
+ document.getElementById('expFileName').textContent = 'No receipt selected. Removal takes effect when saved.';
+}
 
         async function handleExpenseFileSelected(e) {
  const file = e.target.files[0]; if (!file) return;
  const version = window.expUploadVersion = (window.expUploadVersion || 0) + 1;
- pendingExpenseFileBase64 = null; pendingExpenseFileName = null; window.expReceipt = null;
+ const previousReceipt = {data:pendingExpenseFileBase64,name:pendingExpenseFileName,metadata:window.expReceipt};
  try {
   EvergreenReceipts.validateFile(file);
   window.expUploading = true;
@@ -2003,7 +2032,7 @@
   window.expReceipt = {schemaVersion:1,fileName:file.name,mimeType:file.type,sizeBytes:file.size,capturedAt:new Date().toISOString(),source:e.target.id === 'expCameraInput' ? 'camera' : 'upload',extraction:{status:'not_available',reviewRequired:true}};
   document.getElementById('expFileName').textContent = file.name + ' · ' + Math.ceil(file.size / 1024) + ' KB · Ready';
  } catch(error) {
-  if (version === window.expUploadVersion) {document.getElementById('expFileName').textContent = error.message; showToast(error.message,'error');}
+  if (version === window.expUploadVersion) {pendingExpenseFileBase64 = previousReceipt.data; pendingExpenseFileName = previousReceipt.name; window.expReceipt = previousReceipt.metadata; document.getElementById('expFileName').textContent = error.message + (previousReceipt.data ? ' Existing receipt kept.' : ''); showToast(error.message,'error');}
  } finally {if (version === window.expUploadVersion) window.expUploading = false;}
 }
 
@@ -2021,30 +2050,30 @@
  e.preventDefault();
  try {
   if (window.expUploading) throw Error('Wait for the receipt to finish loading.');
-  const exp = EvergreenReceipts.create({
+  const input = {
    merchant:document.getElementById('expMerchant').value,category:document.getElementById('expCategory').value,
    date:document.getElementById('expDate').value,netAmount:document.getElementById('expNet').value,
    vatTreatment:document.getElementById('expVatRate').value,payMethod:document.getElementById('expPayMethod').value,
    reference:document.getElementById('expReference').value.trim(),notes:document.getElementById('expNotes').value.trim(),
    fileName:pendingExpenseFileName || null,attachment:pendingExpenseFileBase64 || null,receipt:window.expReceipt || null
-  });
-  if (EvergreenReceipts.duplicates(exp,appState.expenses).length && !confirm('An expense with the same merchant, date and total exists. Save another?')) return;
+  };
+  const editing = Boolean(window.editingExpenseId);
+  const existing = editing ? appState.expenses.find(item => item.id === window.editingExpenseId) : null;
+  const exp = editing ? EvergreenReceipts.revise(existing,input) : EvergreenReceipts.create(input);
+  if (EvergreenReceipts.duplicates(exp,appState.expenses).length && !confirm('Another expense with the same merchant, date and total exists. Save anyway?')) return;
   const previous = JSON.parse(JSON.stringify(appState));
   try {
-   const journal = window.EvergreenLedger ? EvergreenLedger.fromDocument('Expense',exp) : null;
    if (window.EvergreenSuppliers) {
     const supplier = EvergreenSuppliers.ensureSupplier(appState,exp.merchant);
     if (supplier) exp.supplierId = supplier.id;
    }
-   appState.expenses.unshift(exp);
-   if (journal) (appState.ledgerEntries ||= []).push(journal);
+   EvergreenReceipts.applyExpense(appState,exp,window.EvergreenLedger);
    saveState();
   } catch(error) {appState = previous; throw error;}
-  closeModal('expenseModal');
-  switchTab('expenses');
-  window.scrollTo({top: 0, behavior: 'auto'});
+  closeModal('expenseModal'); window.editingExpenseId = null;
+  switchTab('expenses'); window.scrollTo({top: 0, behavior: 'auto'});
   renderDashboard(); renderContacts();
-  showToast('Expense saved' + (exp.attachment ? ' with receipt.' : ' without receipt.'));
+  showToast(editing ? 'Expense changes saved.' : 'Expense saved' + (exp.attachment ? ' with receipt.' : ' without receipt.'));
  } catch(error) {showToast(error.message || 'Unable to save expense. Local storage may be full; back up your data.','error');}
 }
 function suggestExpenseCategory() {
