@@ -76,6 +76,27 @@
       ], 'supplier');
     }
 
+
+    // V5.1 relationship migration: attach stable contact IDs to historical documents.
+    const customersByName = new Map(state.customers.map((customer) => [customer.name.toLowerCase(), customer]));
+    state.invoices.forEach((invoice) => {
+      if (!invoice.customerId && invoice.customer) {
+        invoice.customerId = customersByName.get(String(invoice.customer).trim().toLowerCase())?.id || null;
+      }
+    });
+
+    const suppliersByName = new Map(state.suppliers.map((supplier) => [supplier.name.toLowerCase(), supplier]));
+    state.bills.forEach((bill) => {
+      if (!bill.supplierId && bill.supplier) {
+        bill.supplierId = suppliersByName.get(String(bill.supplier).trim().toLowerCase())?.id || null;
+      }
+    });
+    state.expenses.forEach((expense) => {
+      if (!expense.supplierId && expense.merchant) {
+        expense.supplierId = suppliersByName.get(String(expense.merchant).trim().toLowerCase())?.id || null;
+      }
+    });
+
     if (typeof state.frsMode !== 'boolean') state.frsMode = false;
     if (!Number.isFinite(Number(state.frsRate))) state.frsRate = 14.5;
 
