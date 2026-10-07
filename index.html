@@ -1080,7 +1080,7 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block font-medium mb-1">Merchant / Supplier</label>
-                        <input type="text" id="expMerchant" required placeholder="Apple Store / Uber" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                        <input type="text" id="expMerchant" oninput="suggestExpenseCategory()" required placeholder="Apple Store / Uber" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
                     </div>
                     <div>
                         <label class="block font-medium mb-1">Expense Category</label>
@@ -1090,7 +1090,7 @@
                             <option value="Rent & Utilities">Rent & Utilities</option>
                             <option value="Travel & Meals">Travel & Meals</option>
                             <option value="Legal & Professional">Legal & Professional</option>
-                            <option value="Advertising & Marketing">Advertising & Marketing</option>
+                            <option value="Advertising & Marketing">Advertising & Marketing</option><option>Bank Fees</option><option>Insurance</option><option>Repairs &amp; Maintenance</option><option>Other Expenses</option>
                         </select>
                     </div>
                 </div>
@@ -1102,7 +1102,7 @@
                     </div>
                     <div>
                         <label class="block font-medium mb-1">Net Amount (£)</label>
-                        <input type="number" step="0.01" id="expNet" required oninput="recalcExpenseTotal()" placeholder="100.00" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                        <input type="number" step="0.01" id="expNet" min="0.01" required oninput="recalcExpenseTotal()" placeholder="100.00" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
                     </div>
                     <div>
                         <label class="block font-medium mb-1">VAT Rate</label>
@@ -1120,17 +1120,25 @@
                     <span class="font-bold text-emerald-600 dark:text-emerald-400">Gross Total: <strong id="expGrossVal">£0.00</strong></span>
                 </div>
 
+<p id="expCategoryHint" aria-live="polite"></p>
+ <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+ <label>Payment method<select id="expPayMethod" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"><option>Company Card</option><option>Bank Transfer</option></select></label>
+ <label>Receipt reference<input id="expReference" maxlength="100" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"></label></div>
+ <label class="block">Notes<textarea id="expNotes" maxlength="1000" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"></textarea></label>
+ <p class="text-slate-500">Paid business expenses in GBP. Enter receipt figures manually and review VAT. OCR / AI extraction is not available.</p>
                 <!-- File Attachment Area -->
                 <div>
-                    <label class="block font-medium mb-1">Receipt Attachment (PNG, JPG, WEBP, PDF Data URL)</label>
+                    <label class="block font-medium mb-1">Receipt Attachment (JPG, PNG, WEBP or PDF, maximum 2 MB)</label>
                     <div class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-4 text-center bg-slate-50 dark:bg-slate-900 hover:border-emerald-500 transition cursor-pointer" onclick="document.getElementById('expFileInput').click()">
-                        <input type="file" id="expFileInput" accept="image/*,application/pdf" class="hidden" onchange="handleExpenseFileSelected(event)">
+                        <input type="file" id="expFileInput" accept="image/jpeg,image/png,image/webp,application/pdf" class="hidden" onchange="handleExpenseFileSelected(event)">
                         <i class="fa-solid fa-cloud-arrow-up text-2xl text-emerald-500 mb-1"></i>
-                        <p id="expFileName" class="text-xs font-medium text-slate-600 dark:text-slate-300">Click or Drop Receipt File Here</p>
-                        <p class="text-[10px] text-slate-400">Stores directly inside record Base64 data</p>
+                        <p id="expFileName" class="text-xs font-medium text-slate-600 dark:text-slate-300">Choose a receipt (optional)</p>
+                        <p class="text-[10px] text-slate-400">Saved locally and included in your backup.</p>
                     </div>
                 </div>
 
+<input type="file" id="expCameraInput" accept="image/jpeg,image/png,image/webp" capture="environment" class="hidden" onchange="handleExpenseFileSelected(event)">
+ <button type="button" onclick="document.getElementById('expCameraInput').click()" class="px-4 py-3 bg-brand-600 text-white rounded-xl">Take receipt photo</button>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
                     <button type="button" onclick="closeModal('expenseModal')" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200">Cancel</button>
                     <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Save Expense Entry</button>
@@ -1930,14 +1938,15 @@
         function renderExpensesTable() {
             const tbody = document.getElementById('expensesTableBody');
             tbody.innerHTML = '';
+            const escapeText = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
             appState.expenses.forEach(exp => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="p-4 font-mono">${exp.date}</td>
-                    <td class="p-4 font-semibold text-slate-800 dark:text-slate-200">${exp.merchant}</td>
-                    <td class="p-4"><span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium">${exp.category}</span></td>
-                    <td class="p-4 text-slate-500">${exp.payMethod || 'Company Card'}</td>
+                    <td class="p-4 font-mono">${escapeText(exp.date)}</td>
+                    <td class="p-4 font-semibold text-slate-800 dark:text-slate-200">${escapeText(exp.merchant)}</td>
+                    <td class="p-4"><span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium">${escapeText(exp.category)}</span></td>
+                    <td class="p-4 text-slate-500">${escapeText(exp.payMethod || 'Company Card')}</td>
                     <td class="p-4 text-right font-mono">£${exp.netAmount.toFixed(2)}</td>
                     <td class="p-4 text-right font-mono">${exp.vatRate}%</td>
                     <td class="p-4 text-right font-mono text-emerald-600 dark:text-emerald-400">£${exp.vatAmount.toFixed(2)}</td>
@@ -1954,25 +1963,37 @@
         }
 
         function openExpenseModal() {
-            document.getElementById('expDate').value = new Date().toISOString().split('T')[0];
-            pendingExpenseFileBase64 = null;
-            pendingExpenseFileName = null;
-            document.getElementById('expFileName').innerText = "Click or Drop Receipt File Here";
-            document.getElementById('expenseModal').classList.remove('hidden');
-        }
+ document.getElementById('expenseForm').reset();
+ document.getElementById('expDate').value = new Date().toISOString().slice(0,10);
+ pendingExpenseFileBase64 = null; pendingExpenseFileName = null;
+ window.expReceipt = null; window.expUploadVersion = (window.expUploadVersion || 0) + 1; window.expUploading = false;
+ document.getElementById('expFileName').textContent = 'Choose a receipt (optional)';
+ document.getElementById('expCategoryHint').textContent = '';
+ recalcExpenseTotal();
+ document.getElementById('expenseModal').classList.remove('hidden');
+}
 
-        function handleExpenseFileSelected(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            pendingExpenseFileName = file.name;
-            document.getElementById('expFileName').innerText = `Attached: ${file.name}`;
-
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                pendingExpenseFileBase64 = evt.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
+        async function handleExpenseFileSelected(e) {
+ const file = e.target.files[0]; if (!file) return;
+ const version = window.expUploadVersion = (window.expUploadVersion || 0) + 1;
+ pendingExpenseFileBase64 = null; pendingExpenseFileName = null; window.expReceipt = null;
+ try {
+  EvergreenReceipts.validateFile(file);
+  window.expUploading = true;
+  document.getElementById('expFileName').textContent = 'Reading receipt…';
+  const data = await new Promise((resolve,reject) => {
+   const reader = new FileReader(); reader.onload = () => resolve(reader.result);
+   reader.onerror = () => reject(Error('Unable to read receipt.')); reader.onabort = () => reject(Error('Receipt reading cancelled.'));
+   reader.readAsDataURL(file);
+  });
+  if (version !== window.expUploadVersion) return;
+  pendingExpenseFileBase64 = data; pendingExpenseFileName = file.name;
+  window.expReceipt = {schemaVersion:1,fileName:file.name,mimeType:file.type,sizeBytes:file.size,capturedAt:new Date().toISOString(),source:e.target.id === 'expCameraInput' ? 'camera' : 'upload',extraction:{status:'not_available',reviewRequired:true}};
+  document.getElementById('expFileName').textContent = file.name + ' · ' + Math.ceil(file.size / 1024) + ' KB · Ready';
+ } catch(error) {
+  if (version === window.expUploadVersion) {document.getElementById('expFileName').textContent = error.message; showToast(error.message,'error');}
+ } finally {if (version === window.expUploadVersion) window.expUploading = false;}
+}
 
         function recalcExpenseTotal() {
             const net = parseFloat(document.getElementById('expNet').value) || 0;
@@ -1985,56 +2006,55 @@
         }
 
         function saveExpense(e) {
-            e.preventDefault();
-            const net = parseFloat(document.getElementById('expNet').value) || 0;
-            const rateVal = document.getElementById('expVatRate').value;
-            const rate = rateVal === 'EXEMPT' ? 0 : parseFloat(rateVal) || 0;
-            const vat = net * (rate / 100);
-
-            const exp = {
-                id: 'EXP-' + Math.floor(1000 + Math.random() * 9000),
-                merchant: document.getElementById('expMerchant').value,
-                category: document.getElementById('expCategory').value,
-                date: document.getElementById('expDate').value,
-                payMethod: 'Company Card',
-                netAmount: net,
-                vatRate: rate,
-                vatAmount: vat,
-                grossAmount: net + vat,
-                fileName: pendingExpenseFileName || 'Receipt.png',
-                attachment: pendingExpenseFileBase64 || 'https://placehold.co/600x400/0284c7/ffffff?text=Receipt+Attached'
-            };
-
-            appState.expenses.unshift(exp);
-            if (window.EvergreenSuppliers) {
-                const supplierAccount = window.EvergreenSuppliers.ensureSupplier(appState, exp.merchant);
-                if (supplierAccount) exp.supplierId = supplierAccount.id;
-            }
-            if (window.EvergreenLedger) {
-                appState.ledgerEntries.push(window.EvergreenLedger.fromDocument('Expense', exp));
-            }
-            saveState();
-            closeModal('expenseModal');
-            renderExpensesTable();
-            renderDashboard();
-            showToast('Expense log and receipt saved!');
-        }
+ e.preventDefault();
+ try {
+  if (window.expUploading) throw Error('Wait for the receipt to finish loading.');
+  const exp = EvergreenReceipts.create({
+   merchant:document.getElementById('expMerchant').value,category:document.getElementById('expCategory').value,
+   date:document.getElementById('expDate').value,netAmount:document.getElementById('expNet').value,
+   vatTreatment:document.getElementById('expVatRate').value,payMethod:document.getElementById('expPayMethod').value,
+   reference:document.getElementById('expReference').value.trim(),notes:document.getElementById('expNotes').value.trim(),
+   fileName:pendingExpenseFileName || null,attachment:pendingExpenseFileBase64 || null,receipt:window.expReceipt || null
+  });
+  if (EvergreenReceipts.duplicates(exp,appState.expenses).length && !confirm('An expense with the same merchant, date and total exists. Save another?')) return;
+  const previous = JSON.parse(JSON.stringify(appState));
+  try {
+   const journal = window.EvergreenLedger ? EvergreenLedger.fromDocument('Expense',exp) : null;
+   if (window.EvergreenSuppliers) {
+    const supplier = EvergreenSuppliers.ensureSupplier(appState,exp.merchant);
+    if (supplier) exp.supplierId = supplier.id;
+   }
+   appState.expenses.unshift(exp);
+   if (journal) (appState.ledgerEntries ||= []).push(journal);
+   saveState();
+  } catch(error) {appState = previous; throw error;}
+  closeModal('expenseModal'); renderExpensesTable(); renderDashboard(); renderContacts();
+  showToast('Expense saved' + (exp.attachment ? ' with receipt.' : ' without receipt.'));
+ } catch(error) {showToast(error.message || 'Unable to save expense. Local storage may be full; back up your data.','error');}
+}
+function suggestExpenseCategory() {
+ const suggestion = EvergreenReceipts.suggest(document.getElementById('expMerchant').value,appState.expenses);
+ const hint = document.getElementById('expCategoryHint'); hint.replaceChildren();
+ if (!suggestion) return;
+ const button = document.createElement('button'); button.type = 'button'; button.className = 'text-brand-600 underline';
+ button.textContent = 'Use ' + suggestion.category + ' (' + suggestion.reason + ')';
+ button.onclick = () => {document.getElementById('expCategory').value = suggestion.category; hint.textContent = 'Suggestion applied. Review before saving.';};
+ hint.appendChild(button);
+}
 
         function viewReceipt(expId) {
-            const exp = appState.expenses.find(e => e.id === expId);
-            if (!exp || !exp.attachment) return;
-
-            document.getElementById('receiptViewerTitle').innerText = `Receipt Preview - ${exp.merchant} (${exp.date})`;
-            const container = document.getElementById('receiptViewerContent');
-
-            if (exp.attachment.startsWith('data:application/pdf')) {
-                container.innerHTML = `<p class="text-xs text-slate-500">PDF Document Attached: <a href="${exp.attachment}" download="${exp.fileName}" class="text-brand-600 underline font-bold">Download PDF File</a></p>`;
-            } else {
-                container.innerHTML = `<img src="${exp.attachment}" class="max-h-[50vh] rounded-xl object-contain shadow-md" alt="Receipt Attachment">`;
-            }
-
-            document.getElementById('receiptViewerModal').classList.remove('hidden');
-        }
+ const exp = appState.expenses.find(e => e.id === expId); if (!exp || !exp.attachment) return;
+ const container = document.getElementById('receiptViewerContent'); container.replaceChildren();
+ document.getElementById('receiptViewerTitle').textContent = 'Receipt · ' + exp.merchant + ' · ' + exp.date;
+ if (/^data:application\/pdf;base64,/.test(exp.attachment)) {
+  const link = document.createElement('a'); link.href = exp.attachment; link.download = exp.fileName || 'Receipt.pdf';
+  link.textContent = 'Download PDF receipt'; link.className = 'text-brand-600 underline'; container.appendChild(link);
+ } else if (/^data:image\/(jpeg|png|webp);base64,/.test(exp.attachment) || /^https:\/\//.test(exp.attachment)) {
+  const img = document.createElement('img'); img.src = exp.attachment; img.alt = 'Receipt'; img.className = 'max-h-[50vh] rounded-xl object-contain'; container.appendChild(img);
+ } else {container.textContent = 'Unsupported legacy receipt format.';}
+ if (exp.receipt) {const info = document.createElement('p'); info.textContent = exp.receipt.fileName + ' · ' + exp.receipt.source + ' · ' + exp.receipt.capturedAt + ' · Extraction unavailable'; container.appendChild(info);}
+ document.getElementById('receiptViewerModal').classList.remove('hidden');
+}
 
         function bankStatusClass(status) {
             if (status === 'Matched') return 'bg-emerald-100 text-emerald-700';
@@ -2656,6 +2676,7 @@
     <script src="js/core/suppliers.js"></script>
     <script src="js/core/payments.js"></script>
     <script src="js/core/banking.js"></script>
+    <script src="js/core/receipts.js"></script>
     <script src="js/core/reports.js"></script>
     <script src="js/ui/reports.js"></script>
     <script src="js/app.js"></script>
