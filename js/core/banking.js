@@ -62,25 +62,46 @@
     return -1;
   }
 
+  function validDate(value) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value ? value : '';
+  }
+  function csvRecords(text) {
+    const records=[];let current='',quoted=false;
+    for(let i=0;i<text.length;i++) {
+      const char=text[i];
+      if(char==='"') {
+        if(quoted && text[i+1]==='"') {current+='""';i++;continue;}
+        quoted=!quoted;current+=char;
+      } else if((char==='\n' || char==='\r') && !quoted) {
+        if(current.trim()) records.push(current);
+        current='';
+        if(char==='\r' && text[i+1]==='\n') i++;
+      } else {current+=char;}
+    }
+    if(quoted) throw Error('CSV contains an unfinished quoted field.');
+    if(current.trim()) records.push(current);
+    return records;
+  }
+
   function normalizeDate(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
-    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return validDate(raw);
 
     const uk = raw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
     if (uk) {
       let day = uk[1], month = uk[2], year = uk[3];
       if (year.length === 2) year = Number(year) >= 70 ? '19' + year : '20' + year;
-      return year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+      return validDate(year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0'));
     }
 
     const parsed = new Date(raw);
-    return Number.isNaN(parsed.getTime()) ? raw : parsed.toISOString().slice(0, 10);
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
   }
 
   function parseCsv(text) {
     const delimiter = detectDelimiter(text);
-    const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter((line) => line.trim());
+    const lines = csvRecords(String(text || '').replace(/^\uFEFF/, ''));
     if (lines.length < 2) return [];
 
     const headers = parseDelimitedLine(lines[0], delimiter);
@@ -103,9 +124,11 @@
         amount = roundMoney(credit - debit);
       }
 
+      const date=normalizeDate(row[dateIdx]);
+      if (!date) throw Error('CSV row '+(index+2)+' has an invalid date. No rows were imported.');
       return {
         sourceRow: index + 2,
-        date: normalizeDate(row[dateIdx]),
+        date,
         description: String(row[descIdx] || '').trim(),
         amount
       };
@@ -167,6 +190,7 @@
     if (outstanding <= 0) return null;
 
     const absAmount = Math.abs(roundMoney(tx.amount));
+    if (!Number.isFinite(Number(tx.amount)) || absAmount <= 0 || absAmount > outstanding) return null;
     const amountDiff = Math.abs(absAmount - outstanding);
     const amountTolerance = Math.max(0.01, outstanding * 0.005);
     let score = 0;
@@ -179,7 +203,7 @@
     const reference = doc.invNo || doc.billNo || doc.id;
     const party = doc.customer || doc.supplier || '';
     const normalizedDescription = normalizeText(tx.description);
-    if (reference && normalizedDescription.includes(normalizeText(reference))) score += 25;
+    if (reference && (' '+normalizedDescription+' ').includes(' '+normalizeText(reference)+' ')) score += 25;
 
     score += Math.round(tokenOverlap(tx.description, party) * 15);
 
@@ -203,7 +227,13 @@
       if (candidate) candidates.push(candidate);
     });
 
-    return candidates.sort((a, b) => b.score - a.score)[0] || null;
+    candidates.sort((a,b)=>b.score-a.score);
+    const best=candidates[0] || null;
+    if (best && candidates[1] && best.score>=85 && best.score-candidates[1].score<10) {
+      best.score=84;
+      best.ambiguous=true;
+    }
+    return best;
   }
 
   function analyseTransaction(state, tx) {
@@ -268,13 +298,21 @@
   }
 
   function applyMatch(state, tx, type, id) {
+    if (tx.status==='Matched' || tx.status==='Duplicate') throw Error('This bank transaction has already been reconciled or excluded.');
+    if (!['Invoice','Bill'].includes(type)) throw Error('Unsupported match type.');
+    const signedAmount=Number(tx.amount);
+    if (!Number.isFinite(signedAmount) || signedAmount===0) throw Error('Bank transaction amount is invalid.');
+    if ((type==='Invoice' && signedAmount<0) || (type==='Bill' && signedAmount>0)) throw Error('Incoming transactions match invoices; outgoing transactions match supplier bills.');
+    if (typeof window.EvergreenPayments?.recordPayment!=='function') throw Error('Payment engine unavailable. Refresh Evergreen before matching.');
+    if (!normalizeDate(tx.date)) throw Error('Bank transaction date is invalid.');
     const doc = type === 'Invoice'
       ? (state.invoices || []).find((item) => item.id === id)
       : (state.bills || []).find((item) => item.id === id);
-    if (!doc) throw new Error('Suggested accounting document no longer exists');
+    if (!doc || doc.type!==type) throw new Error('Suggested accounting document no longer exists');
 
     const outstanding = documentOutstanding(state, type, doc);
-    const amount = Math.min(Math.abs(roundMoney(tx.amount)), outstanding);
+    const amount = Math.abs(roundMoney(tx.amount));
+    if (amount>outstanding) throw Error('Bank amount exceeds the outstanding balance. This transaction cannot be fully reconciled to one document.');
     if (amount <= 0) throw new Error('Document has no outstanding balance');
 
     if (window.EvergreenPayments) {
