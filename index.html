@@ -60,10 +60,93 @@
         ::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.5); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(107, 114, 128, 0.8); }
 
+        /* Print documents in normal page flow; hidden app elements must occupy no space. */
+        @page {
+            size: A4 portrait;
+            margin: 12mm 14mm;
+        }
         @media print {
-            body * { visibility: hidden; }
-            #printableArea, #printableArea * { visibility: visible; }
-            #printableArea { position: absolute; left: 0; top: 0; width: 100%; }
+            html, body {
+                display: block !important;
+                width: auto !important;
+                height: auto !important;
+                min-height: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                background: #fff !important;
+                color: #1e293b !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            body > *:not(#previewDocModal) { display: none !important; }
+            #previewDocModal {
+                display: block !important;
+                position: static !important;
+                inset: auto !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                background: none !important;
+                backdrop-filter: none !important;
+            }
+            #previewDocModal > div {
+                display: block !important;
+                width: 100% !important;
+                max-width: none !important;
+                height: auto !important;
+                min-height: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: 0 !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                background: #fff !important;
+                backdrop-filter: none !important;
+            }
+            #printableArea {
+                position: static !important;
+                display: block !important;
+                width: 100% !important;
+                max-width: none !important;
+                height: auto !important;
+                min-height: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: 0 !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                font: 11pt/1.45 Arial, sans-serif !important;
+                background: #fff !important;
+                color: #1e293b !important;
+            }
+            #printableArea h1 { font-size: 25pt !important; line-height: 1.2 !important; }
+            #printableArea h2 { font-size: 12pt !important; }
+            #printableArea p { font-size: inherit !important; }
+            #printableArea table { width: 100% !important; border-collapse: collapse; }
+            #printableArea th, #printableArea td {
+                padding: 3mm 1.5mm !important;
+                font-size: 10.5pt !important;
+                vertical-align: top;
+                overflow-wrap: anywhere;
+            }
+            #printableArea thead { display: table-header-group; }
+            #printableArea tr { break-inside: avoid; page-break-inside: avoid; }
+            #printableArea .document-header,
+            #printableArea .document-recipient,
+            #printableArea .document-totals {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            #printableArea .document-header { padding-bottom: 6mm !important; }
+            #printableArea .document-recipient { margin: 7mm 0 !important; }
+            #printableArea .document-lines { margin: 7mm 0 !important; }
+            #printableArea .document-totals { padding-top: 5mm !important; }
+            #documentCompanyLogo img { max-height: 24mm !important; max-width: 50mm !important; }
+            #printableArea .overflow-x-auto { overflow: visible !important; }
             .no-print { display: none !important; }
         }
     </style>
@@ -2573,7 +2656,7 @@ function suggestExpenseCategory() {
  const profile=appState.companyProfile || {};
  const area=document.getElementById('printableArea');
  area.innerHTML=`
- <div class="flex justify-between items-start gap-4 border-b border-slate-200 pb-4">
+ <div class="document-header flex justify-between items-start gap-4 border-b border-slate-200 pb-4">
   <div>
    <h1 class="text-2xl font-bold uppercase text-brand-600">${escapeText(doc.type)}</h1>
    <p>Ref #: ${escapeText(doc.invNo || doc.billNo)}</p><p>Date: ${escapeText(doc.date)}</p>
@@ -2584,12 +2667,12 @@ function suggestExpenseCategory() {
    <p style="white-space:pre-line">${escapeText(profile.address)}</p><p>VRN: ${escapeText(profile.vrn)}</p>
   </div>
  </div>
- <div class="my-4"><span class="text-slate-500">${type==='sales' ? 'Billed To:' : 'Supplier:'}</span><p class="font-bold">${escapeText(doc.customer || doc.supplier)}</p></div>
- <table class="w-full text-left my-6 border-collapse">
+ <div class="document-recipient my-4"><span class="text-slate-500">${type==='sales' ? 'Billed To:' : 'Supplier:'}</span><p class="font-bold">${escapeText(doc.customer || doc.supplier)}</p></div>
+ <table class="document-lines w-full text-left my-6 border-collapse">
   <thead><tr class="border-b border-slate-300"><th class="py-2">Description</th><th class="py-2 text-center">Qty</th><th class="py-2 text-right">Price (£)</th><th class="py-2 text-right">VAT Rate</th><th class="py-2 text-right">Net Total (£)</th></tr></thead>
   <tbody>${(doc.items || []).map(item=>`<tr class="border-b border-slate-100"><td class="py-2">${escapeText(item.desc)}</td><td class="py-2 text-center">${escapeText(item.qty)}</td><td class="py-2 text-right">${pounds(item.price)}</td><td class="py-2 text-right">${item.vatRate==='EXEMPT' ? 'Exempt' : escapeText(item.vatRate)+'%'}</td><td class="py-2 text-right">${pounds(Number(item.qty)*Number(item.price))}</td></tr>`).join('')}</tbody>
  </table>
- <div class="border-t border-slate-200 pt-4 text-right space-y-1">
+ <div class="document-totals border-t border-slate-200 pt-4 text-right space-y-1">
   <p>Subtotal Net: <strong>${pounds(doc.totalNet)}</strong></p><p>VAT Total: <strong>${pounds(doc.totalVat)}</strong></p>
   <p class="font-bold">Document Total: ${pounds(doc.totalGross)}</p>
   ${settlement ? `<p>Paid to date: <strong>${pounds(settlement.paid)}</strong></p><p class="font-bold text-brand-600">Amount Outstanding: ${pounds(settlement.outstanding)}</p>` : ''}
