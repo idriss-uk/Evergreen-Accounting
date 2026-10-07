@@ -14,6 +14,11 @@
     return (state.customers || []).find((customer) => customer.name.toLowerCase() === key) || null;
   }
 
+  function resolveCustomer(state, customerRef) {
+    if (!customerRef) return null;
+    return findById(state, customerRef) || findByName(state, customerRef);
+  }
+
   function upsertCustomer(state, input = {}) {
     const normalizedName = cleanName(input.name);
     if (!normalizedName) throw new Error('Customer name is required');
@@ -43,13 +48,21 @@
   }
 
   function ensureCustomer(state, name, details = {}) {
+    const existing = findByName(state, name);
+    if (existing) return existing;
     return upsertCustomer(state, { name, ...details });
   }
 
-  function outstandingBalance(state, customerName) {
-    const name = cleanName(customerName).toLowerCase();
+  function outstandingBalance(state, customerRef) {
+    const customer = resolveCustomer(state, customerRef);
+    if (!customer) return 0;
+    const name = customer.name.toLowerCase();
+
     return (state.invoices || [])
-      .filter((invoice) => invoice.type === 'Invoice' && invoice.customer?.toLowerCase() === name)
+      .filter((invoice) =>
+        invoice.type === 'Invoice' &&
+        (invoice.customerId === customer.id || (!invoice.customerId && invoice.customer?.toLowerCase() === name))
+      )
       .reduce((total, invoice) => {
         const amount = window.EvergreenPayments
           ? window.EvergreenPayments.outstandingAmount(state, 'Invoice', invoice.id)
@@ -58,14 +71,20 @@
       }, 0);
   }
 
-  function salesCount(state, customerName) {
-    const name = cleanName(customerName).toLowerCase();
-    return (state.invoices || []).filter((invoice) => invoice.customer?.toLowerCase() === name).length;
+  function salesCount(state, customerRef) {
+    const customer = resolveCustomer(state, customerRef);
+    if (!customer) return 0;
+    const name = customer.name.toLowerCase();
+
+    return (state.invoices || []).filter((invoice) =>
+      invoice.customerId === customer.id || (!invoice.customerId && invoice.customer?.toLowerCase() === name)
+    ).length;
   }
 
   window.EvergreenCustomers = Object.freeze({
     findById,
     findByName,
+    resolveCustomer,
     upsertCustomer,
     ensureCustomer,
     outstandingBalance,
