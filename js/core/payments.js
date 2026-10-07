@@ -33,6 +33,14 @@
     return Math.max(0, Math.round((gross - paidAmount(state, documentType, documentId)) * 100) / 100);
   }
 
+  function paymentSummary(state,documentType,documentId) {
+    const doc=findDocument(state,documentType,documentId); if (!doc) return null;
+    const gross=Math.round((Number(doc.totalGross)||0)*100)/100;
+    const outstanding=outstandingAmount(state,documentType,documentId);
+    const paid=Math.max(0,Math.round((gross-outstanding)*100)/100);
+    return {gross,paid,outstanding,status:outstanding<=0 ? 'Paid' : paid>0 ? 'Partially Paid' : 'Unpaid'};
+  }
+
   function recordPayment(state, input) {
     const document = findDocument(state, input.documentType, input.documentId);
     if (!document) throw new Error('Payment document not found');
@@ -75,6 +83,7 @@
     paymentsForDocument,
     paidAmount,
     outstandingAmount,
-    recordPayment
+    recordPayment,
+    paymentSummary
   });
 })();
