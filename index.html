@@ -140,6 +140,9 @@
                     <button id="tabBtn-tax" onclick="switchTab('tax')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
                         <i class="fa-solid fa-calculator"></i> UK Tax & Payroll Suite
                     </button>
+                    <button id="tabBtn-reports" onclick="switchTab('reports')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line"></i> Reports
+                    </button>
                     <button id="tabBtn-settingsTab" onclick="switchTab('settingsTab')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
                         <i class="fa-solid fa-gear"></i> Settings & Audit
                     </button>
@@ -828,7 +831,58 @@
                 </div>
             </section>
 
-            <!-- 8. SETTINGS & PORTABILITY -->
+            <!-- 8. REPORTS & ACCOUNTING CONTROL -->
+            <section id="tab-reports" class="tab-content hidden space-y-6">
+                <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Reports & Accounting Control</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Ledger-driven financial reports with period filters, ageing analysis, CSV export, and print-ready output.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div>
+                            <label class="block text-[10px] uppercase font-semibold text-slate-400 mb-1">From</label>
+                            <input id="reportFrom" type="date" onchange="renderReports()" class="px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] uppercase font-semibold text-slate-400 mb-1">To</label>
+                            <input id="reportTo" type="date" onchange="renderReports()" class="px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        </div>
+                        <button onclick="exportCurrentReportCsv()" class="self-end px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+                            <i class="fa-solid fa-file-csv mr-1 text-emerald-600"></i> Export CSV
+                        </button>
+                        <button onclick="printCurrentReport()" class="self-end px-3.5 py-2 text-xs font-semibold rounded-xl bg-brand-600 hover:bg-brand-700 text-white transition">
+                            <i class="fa-solid fa-print mr-1"></i> Print / PDF
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-3 rounded-2xl overflow-x-auto">
+                    <div class="flex gap-2 min-w-max">
+                        <button data-report-type="profitLoss" onclick="setReportType('profitLoss')" class="px-3 py-2 text-xs font-semibold rounded-xl bg-brand-600 text-white">Profit & Loss</button>
+                        <button data-report-type="balanceSheet" onclick="setReportType('balanceSheet')" class="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800">Balance Sheet</button>
+                        <button data-report-type="trialBalance" onclick="setReportType('trialBalance')" class="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800">Trial Balance</button>
+                        <button data-report-type="generalLedger" onclick="setReportType('generalLedger')" class="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800">General Ledger</button>
+                        <button data-report-type="agedReceivables" onclick="setReportType('agedReceivables')" class="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800">Aged Receivables</button>
+                        <button data-report-type="agedPayables" onclick="setReportType('agedPayables')" class="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800">Aged Payables</button>
+                        <button data-report-type="cashFlow" onclick="setReportType('cashFlow')" class="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800">Cash Flow</button>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-2xl shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                        <div>
+                            <h3 id="reportTitle" class="font-bold text-slate-800 dark:text-slate-100">Profit & Loss</h3>
+                            <p class="text-xs text-slate-500">Generated from Evergreen's accounting ledger and current transaction records.</p>
+                        </div>
+                        <span class="text-[10px] px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 font-bold">V5.2 Ledger Reports</span>
+                    </div>
+                    <div id="reportOutput" class="p-5">
+                        <div class="p-8 text-center text-slate-400 text-sm">Open Reports to generate the selected financial report.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 9. SETTINGS & PORTABILITY -->
             <section id="tab-settingsTab" class="tab-content hidden space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     
@@ -1366,6 +1420,7 @@
 
             if (tabId === 'dashboard') renderDashboard();
             if (tabId === 'contacts') renderContacts();
+            if (tabId === 'reports' && typeof renderReports === 'function') renderReports();
             if (tabId === 'mtd') renderMtdBoxCalculations();
         }
 
@@ -2480,6 +2535,8 @@
     <script src="js/core/customers.js"></script>
     <script src="js/core/suppliers.js"></script>
     <script src="js/core/payments.js"></script>
+    <script src="js/core/reports.js"></script>
+    <script src="js/ui/reports.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
