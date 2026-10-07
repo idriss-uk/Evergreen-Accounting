@@ -130,3 +130,89 @@ body {
     overscroll-behavior-y: contain;
   }
 }
+
+
+/* Keep receipt capture reachable on short screens and with the mobile keyboard. */
+#expenseModal {
+  align-items: flex-start;
+  padding: 1rem;
+  overflow: hidden;
+}
+#expenseModal .expense-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: auto;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: hidden;
+}
+#expenseModal .expense-dialog > * {
+  margin-top: 0;
+}
+#expenseModal .expense-dialog > div:first-child {
+  flex-shrink: 0;
+}
+#expenseForm {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 0.25rem;
+}
+#expenseForm input,
+#expenseForm select,
+#expenseForm textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+#expNotes {
+  height: 5rem;
+  min-height: 5rem;
+  max-height: 8rem;
+  resize: vertical;
+}
+#expFileName {
+  overflow-wrap: anywhere;
+}
+#expenseForm .expense-actions {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  padding-bottom: 0.5rem;
+  z-index: 1;
+}
+.dark #expenseForm .expense-actions {
+  background: #1e293b;
+}
+@media (max-width: 767px) {
+  #expenseModal {
+    padding: 0.5rem;
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+  #expenseModal .expense-dialog {
+    padding: 1rem;
+    max-height: calc(100vh - 1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    max-height: calc(100dvh - 1rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    border-radius: 1rem;
+  }
+  #expenseForm input:not([type="file"]),
+  #expenseForm select,
+  #expenseForm textarea {
+    font-size: 16px;
+  }
+  #expenseForm button {
+    min-height: 44px;
+  }
+  #expenseForm .expense-actions {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+  }
+  #expenseForm .expense-actions button {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}
