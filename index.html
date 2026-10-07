@@ -626,6 +626,7 @@
                             <label class="block text-[10px] uppercase font-semibold text-slate-400 mb-1">Opening Balance (£)</label>
                             <input id="bankOpeningBalance" type="number" step="0.01" onchange="saveBankOpeningBalance()" class="w-36 px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" value="0.00">
                         </div>
+                        <button onclick="openBankRemoval()" class="px-4 py-2 text-xs font-semibold rounded-xl border border-rose-200 text-rose-600 dark:text-rose-300">Remove Bank Rows</button>
                         <button onclick="triggerAutoMatch()" class="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center gap-1.5 shadow-sm">
                             <i class="fa-solid fa-wand-magic-sparkles"></i> Run Smart Match
                         </button>
@@ -1059,7 +1060,20 @@
         </main>
     </div>
 
-    <!-- MODAL 1: INVOICE / CREDIT NOTE FORM -->
+<div id="bankRemovalModal" role="dialog" aria-modal="true" aria-labelledby="bankRemovalTitle" class="fixed inset-0 z-50 hidden bg-slate-900/60 p-4 overflow-y-auto">
+ <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-3xl mx-auto my-4 p-5 space-y-4">
+  <div class="flex justify-between gap-3 items-center"><h3 id="bankRemovalTitle" class="font-bold text-lg">Remove bank statement rows</h3><button type="button" onclick="closeModal('bankRemovalModal')" class="p-2">Close</button></div>
+  <p class="text-sm text-slate-500">Review the dates and descriptions before selecting rows. Reconciled rows are protected. Download a full backup before removal.</p>
+  <div class="flex flex-wrap gap-3 text-sm"><label>From <input id="bankRemovalFrom" type="date" class="border rounded-lg p-2 dark:bg-slate-900"></label><label>To <input id="bankRemovalTo" type="date" class="border rounded-lg p-2 dark:bg-slate-900"></label></div>
+  <div class="flex flex-wrap gap-2">
+   <button type="button" onclick="backupDatabase()" class="px-4 py-2 rounded-xl bg-brand-50 text-brand-700 font-semibold">Download Backup</button>
+   <button type="button" onclick="selectImportedBankRows()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 font-semibold">Select Unreconciled Imports</button>
+  </div>
+  <div id="bankRemovalRows" class="space-y-2" style="max-height:55vh;overflow-y:auto"></div>
+  <div class="flex justify-end gap-2"><button type="button" onclick="closeModal('bankRemovalModal')" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700">Cancel</button><button type="button" onclick="removeSelectedBankRows()" class="px-4 py-2 rounded-xl bg-rose-600 text-white font-semibold">Remove Selected Rows</button></div>
+ </div>
+ </div>
+     <!-- MODAL 1: INVOICE / CREDIT NOTE FORM -->
     <div id="invoiceModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
         <div class="glass-panel bg-white dark:bg-slate-800 rounded-3xl max-w-3xl w-full p-6 shadow-2xl space-y-4 my-8">
             <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3">
@@ -2255,6 +2269,40 @@ function suggestExpenseCategory() {
  document.getElementById('receiptViewerModal').classList.remove('hidden');
 }
 
+        function openBankRemoval() {
+ if (typeof EvergreenBanking.canRemoveTransaction!=='function') {showToast('Bank update is loading. Close and reopen Evergreen, then refresh.','error');return;}
+ const list=document.getElementById('bankRemovalRows');list.replaceChildren();
+ const importedDates=(appState.bankTransactions || []).filter(tx=>tx.importedAt && EvergreenBanking.canRemoveTransaction(appState,tx)).map(tx=>tx.date).sort();
+ document.getElementById('bankRemovalFrom').value=importedDates[0] || '';
+ document.getElementById('bankRemovalTo').value=importedDates[importedDates.length-1] || '';
+ (appState.bankTransactions || []).forEach(tx=>{
+  const allowed=EvergreenBanking.canRemoveTransaction(appState,tx);
+  const label=document.createElement('label');label.className='flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs';
+  const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.value=tx.id;checkbox.disabled=!allowed;
+  checkbox.dataset.imported=tx.importedAt ? 'yes' : 'no';checkbox.dataset.date=tx.date;checkbox.className='mt-1';
+  const text=document.createElement('span');text.textContent=tx.date+' · '+tx.description+' · £'+Number(tx.amount).toFixed(2)+' · '+tx.status+(allowed ? (tx.importedAt ? ' · Imported' : ' · Original / older row') : ' · Protected');
+  label.appendChild(checkbox);label.appendChild(text);list.appendChild(label);
+ });
+ if (!appState.bankTransactions.length) list.textContent='No bank transactions to remove.';
+ document.getElementById('bankRemovalModal').classList.remove('hidden');
+}
+function selectImportedBankRows() {
+ const from=document.getElementById('bankRemovalFrom').value,to=document.getElementById('bankRemovalTo').value;
+ if (from && to && from>to) {showToast('Choose a valid date range.','error');return;}
+ document.querySelectorAll('#bankRemovalRows input[type="checkbox"]').forEach(input=>input.checked=!input.disabled && input.dataset.imported==='yes' && (!from || input.dataset.date>=from) && (!to || input.dataset.date<=to));
+}
+async function removeSelectedBankRows() {
+ const ids=Array.from(document.querySelectorAll('#bankRemovalRows input:checked')).map(input=>input.value);
+ if (!ids.length) {showToast('Select the rows you want to remove.','error');return;}
+ if (!confirm('Remove '+ids.length+' selected bank statement rows? Invoices, bills, expenses and recorded payments will be kept.')) return;
+ const previous=JSON.parse(JSON.stringify(appState));
+ try {
+  const result=EvergreenBanking.removeTransactions(appState,ids);
+  await saveState();closeModal('bankRemovalModal');renderBankTable();
+  showToast('Removed '+result.count+' unreconciled bank rows.');
+ } catch(error) {appState=previous;showToast(error.message || 'Unable to remove bank rows.','error');}
+}
+
         function bankStatusClass(status) {
             if (status === 'Matched') return 'bg-emerald-100 text-emerald-700';
             if (status === 'Suggested') return 'bg-brand-100 text-brand-700';
@@ -2866,7 +2914,7 @@ function suggestExpenseCategory() {
     <script src="js/core/customers.js"></script>
     <script src="js/core/suppliers.js"></script>
     <script src="js/core/payments.js?v=invoice-branding-1"></script>
-    <script src="js/core/banking.js?v=reconciliation-safety-1"></script>
+    <script src="js/core/banking.js?v=bank-row-removal-1"></script>
     <script src="js/core/receipts.js?v=receipt-storage-1"></script>
     <script src="js/core/reports.js"></script>
     <script src="js/ui/reports.js"></script>
