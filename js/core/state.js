@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const SCHEMA_VERSION = 1;
+  const SCHEMA_VERSION = 2;
   const STORAGE_KEY = 'evergreen_accounting_db_v5';
   const LEGACY_STORAGE_KEYS = ['ledgerflow_mtd_db'];
 
@@ -96,6 +96,11 @@
         expense.supplierId = suppliersByName.get(String(expense.merchant).trim().toLowerCase())?.id || null;
       }
     });
+
+    state.bankReconciliation = {
+      openingBalance: Number(state.bankReconciliation?.openingBalance) || 0,
+      ...(state.bankReconciliation || {})
+    };
 
     if (typeof state.frsMode !== 'boolean') state.frsMode = false;
     if (!Number.isFinite(Number(state.frsRate))) state.frsRate = 14.5;
