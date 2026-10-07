@@ -1514,10 +1514,10 @@
             document.getElementById('supplierCount').innerText = appState.suppliers.length;
 
             [...appState.customers].sort((a,b) => a.name.localeCompare(b.name)).forEach(customer => {
-                const outstanding = window.EvergreenCustomers ? window.EvergreenCustomers.outstandingBalance(appState, customer.name) : 0;
+                const outstanding = window.EvergreenCustomers ? window.EvergreenCustomers.outstandingBalance(appState, customer.id) : 0;
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td class="p-4"><div class="font-semibold text-slate-800 dark:text-slate-200">${customer.name}</div><div class="text-[10px] text-slate-400">${window.EvergreenCustomers ? window.EvergreenCustomers.salesCount(appState, customer.name) : 0} sales documents</div></td>
+                    <td class="p-4"><div class="font-semibold text-slate-800 dark:text-slate-200">${customer.name}</div><div class="text-[10px] text-slate-400">${window.EvergreenCustomers ? window.EvergreenCustomers.salesCount(appState, customer.id) : 0} sales documents</div></td>
                     <td class="p-4 text-slate-500"><div>${customer.email || '—'}</div><div class="text-[10px]">${customer.phone || ''}</div></td>
                     <td class="p-4 text-right font-mono font-bold ${outstanding > 0 ? 'text-amber-600' : 'text-emerald-600'}">£${outstanding.toFixed(2)}</td>
                     <td class="p-4 text-right"><button onclick="openCustomerModal('${customer.id}')" class="px-2.5 py-1 rounded-lg bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 font-semibold">Edit</button></td>
@@ -1526,10 +1526,10 @@
             });
 
             [...appState.suppliers].sort((a,b) => a.name.localeCompare(b.name)).forEach(supplier => {
-                const outstanding = window.EvergreenSuppliers ? window.EvergreenSuppliers.outstandingBalance(appState, supplier.name) : 0;
+                const outstanding = window.EvergreenSuppliers ? window.EvergreenSuppliers.outstandingBalance(appState, supplier.id) : 0;
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td class="p-4"><div class="font-semibold text-slate-800 dark:text-slate-200">${supplier.name}</div><div class="text-[10px] text-slate-400">${window.EvergreenSuppliers ? window.EvergreenSuppliers.purchaseCount(appState, supplier.name) : 0} purchase documents</div></td>
+                    <td class="p-4"><div class="font-semibold text-slate-800 dark:text-slate-200">${supplier.name}</div><div class="text-[10px] text-slate-400">${window.EvergreenSuppliers ? window.EvergreenSuppliers.purchaseCount(appState, supplier.id) : 0} purchase documents</div></td>
                     <td class="p-4 text-slate-500"><div>${supplier.email || '—'}</div><div class="text-[10px]">${supplier.phone || ''}</div></td>
                     <td class="p-4 text-right font-mono font-bold ${outstanding > 0 ? 'text-amber-600' : 'text-emerald-600'}">£${outstanding.toFixed(2)}</td>
                     <td class="p-4 text-right"><button onclick="openSupplierModal('${supplier.id}')" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 font-semibold">Edit</button></td>
@@ -1687,7 +1687,8 @@
 
             appState.invoices.unshift(doc);
             if (window.EvergreenCustomers) {
-                window.EvergreenCustomers.ensureCustomer(appState, doc.customer);
+                const customerAccount = window.EvergreenCustomers.ensureCustomer(appState, doc.customer);
+                if (customerAccount) doc.customerId = customerAccount.id;
             }
             if (window.EvergreenLedger) {
                 appState.ledgerEntries.push(window.EvergreenLedger.fromDocument(docType, doc));
@@ -1820,7 +1821,8 @@
 
             appState.bills.unshift(doc);
             if (window.EvergreenSuppliers) {
-                window.EvergreenSuppliers.ensureSupplier(appState, doc.supplier);
+                const supplierAccount = window.EvergreenSuppliers.ensureSupplier(appState, doc.supplier);
+                if (supplierAccount) doc.supplierId = supplierAccount.id;
             }
             if (window.EvergreenLedger) {
                 appState.ledgerEntries.push(window.EvergreenLedger.fromDocument(docType, doc));
@@ -1912,7 +1914,8 @@
 
             appState.expenses.unshift(exp);
             if (window.EvergreenSuppliers) {
-                window.EvergreenSuppliers.ensureSupplier(appState, exp.merchant);
+                const supplierAccount = window.EvergreenSuppliers.ensureSupplier(appState, exp.merchant);
+                if (supplierAccount) exp.supplierId = supplierAccount.id;
             }
             if (window.EvergreenLedger) {
                 appState.ledgerEntries.push(window.EvergreenLedger.fromDocument('Expense', exp));
