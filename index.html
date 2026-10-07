@@ -332,7 +332,7 @@
                         <select id="salesStatusFilter" onchange="filterSalesTable()" class="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none">
                             <option value="ALL">All Statuses</option>
                             <option value="Unpaid">Unpaid</option>
-                            <option value="Part Paid">Part Paid</option>
+                            <option value="Part Paid">Partially Paid</option>
                             <option value="Paid">Paid</option>
                             <option value="Returned">Returned / Credit</option>
                         </select>
@@ -922,11 +922,12 @@
                             </div>
                             <div>
                                 <label class="block font-medium mb-1">Custom Company Logo (Image Data URL / Upload)</label>
-                                <input type="file" id="cfgLogoInput" accept="image/*" onchange="handleLogoUpload(event)" class="w-full text-xs">
+                                <input type="file" id="cfgLogoInput" accept="image/png,image/jpeg,image/webp" onchange="handleLogoUpload(event)" class="w-full text-xs">
                                 <div id="cfgLogoPreview" class="mt-2 h-12 flex items-center">
                                     <span class="text-xs text-slate-400">Default Brand Logo Active</span>
                                 </div>
                             </div>
+                            <button type="button" onclick="removeCompanyLogo()" class="text-brand-600 underline">Remove logo</button>
                             <button onclick="saveCompanyProfile()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-semibold transition text-xs">
                                 Save Profile Settings
                             </button>
@@ -977,6 +978,7 @@
             </div>
 
             <form id="invoiceForm" onsubmit="saveInvoice(event)" class="space-y-4 text-xs">
+                <div id="invCompanyLogo" class="flex items-center min-h-12"></div>
                 <input type="hidden" id="invDocType" value="Invoice">
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
@@ -1011,7 +1013,15 @@
                     <div class="text-sm font-bold text-brand-600 dark:text-brand-400">Total Gross: <span id="invCalcGross">£0.00</span></div>
                 </div>
 
-                <div class="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                <div id="invPaymentFields" class="rounded-xl border border-brand-100 p-3 space-y-3">
+ <p class="font-semibold">Payment status: <span id="invDraftStatus">Unpaid</span></p>
+ <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+ <label>Payment received (£)<input id="invInitialPaymentAmount" type="number" min="0" step="0.01" value="0" oninput="recalcInvoiceTotals()" class="w-full p-2 rounded-xl border bg-slate-50 dark:bg-slate-900"></label>
+ <label>Payment date<input id="invInitialPaymentDate" type="date" class="w-full p-2 rounded-xl border bg-slate-50 dark:bg-slate-900"></label>
+ <label>Payment method<select id="invInitialPaymentMethod" class="w-full p-2 rounded-xl border bg-slate-50 dark:bg-slate-900"><option>Bank Transfer</option><option>Card</option><option>Cash</option></select></label>
+ </div><p class="text-slate-500">Leave payment received at zero for an unpaid invoice. Payments entered here are recorded in the accounts.</p>
+ </div>
+ <div class="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
                     <button type="button" onclick="closeModal('invoiceModal')" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200">Cancel</button>
                     <button type="submit" class="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold">Save Document</button>
                 </div>
@@ -1370,6 +1380,7 @@
                 document.getElementById('storageBusy').classList.remove('hidden');
                 return;
             }
+            renderCompanyProfile();
             renderDashboard();
             renderSalesTable();
             renderPurchasesTable();
@@ -1483,6 +1494,7 @@
 
             if (tabId === 'dashboard') renderDashboard();
             if (tabId === 'contacts') renderContacts();
+            if (tabId === 'settingsTab') renderCompanyProfile();
             if (tabId === 'expenses') renderExpensesTable();
             if (tabId === 'bank') renderBankTable();
             if (tabId === 'reports' && typeof renderReports === 'function') renderReports();
@@ -1599,19 +1611,22 @@
 
             appState.invoices.forEach(inv => {
                 const isInvoice = inv.type === 'Invoice';
+                const summary=isInvoice && window.EvergreenPayments?.paymentSummary ? EvergreenPayments.paymentSummary(appState,'Invoice',inv.id) : null;
+                const displayStatus=summary?.status || (inv.status === 'Part Paid' ? 'Partially Paid' : inv.status);
+                const effectiveStatus=displayStatus === 'Partially Paid' ? 'Part Paid' : displayStatus;
                 const outstanding = isInvoice && window.EvergreenPayments
                     ? window.EvergreenPayments.outstandingAmount(appState, 'Invoice', inv.id)
                     : 0;
-                const statusClass = inv.status === 'Paid'
+                const statusClass = effectiveStatus === 'Paid'
                     ? 'bg-emerald-100 text-emerald-700'
-                    : inv.status === 'Part Paid'
+                    : effectiveStatus === 'Part Paid'
                         ? 'bg-brand-100 text-brand-700'
-                        : inv.status === 'Returned'
+                        : effectiveStatus === 'Returned'
                             ? 'bg-rose-100 text-rose-700'
                             : 'bg-amber-100 text-amber-700';
                 const tr = document.createElement('tr');
                 tr.dataset.type = inv.type;
-                tr.dataset.status = inv.status;
+                tr.dataset.status = effectiveStatus;
                 tr.innerHTML = `
                     <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${inv.type === 'Credit Note' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : 'bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300'}">${inv.type}</span></td>
                     <td class="p-4 font-mono font-bold">${inv.invNo}</td>
@@ -1621,7 +1636,7 @@
                     <td class="p-4 text-right font-mono">£${inv.totalVat.toFixed(2)}</td>
                     <td class="p-4 text-right font-mono font-bold">£${inv.totalGross.toFixed(2)}</td>
                     <td class="p-4 text-right font-mono font-bold ${outstanding > 0 ? 'text-amber-600' : 'text-emerald-600'}">${isInvoice ? '£' + outstanding.toFixed(2) : '—'}</td>
-                    <td class="p-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass}">${inv.status}</span></td>
+                    <td class="p-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass}">${displayStatus}</span></td>
                     <td class="p-4 text-right space-x-2">
                         <button onclick="previewDocument('sales', '${inv.id}')" class="p-1.5 text-slate-500 hover:text-brand-600" title="Print/Preview"><i class="fa-solid fa-file-pdf text-sm"></i></button>
                         ${isInvoice && outstanding > 0 ? `<button onclick="openPaymentModal('Invoice', '${inv.id}')" class="p-1.5 text-brand-600 hover:text-brand-700" title="Record payment"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button>` : ''}
@@ -1731,13 +1746,61 @@
             }
         }
 
+        function validCompanyLogo(value) {
+ return typeof value==='string' && (/^data:image\/(png|jpeg|webp);base64,/.test(value) || /^https:\/\//.test(value));
+}
+function renderCompanyLogo(containerId,value) {
+ const container=document.getElementById(containerId);if (!container) return;
+ container.replaceChildren();
+ if (!validCompanyLogo(value)) {container.textContent='No company logo saved';return;}
+ const img=document.createElement('img');img.src=value;img.alt='Company logo';
+ img.style.maxHeight='80px';img.style.maxWidth='200px';img.style.objectFit='contain';
+ container.appendChild(img);
+}
+function renderCompanyProfile() {
+ const profile=appState.companyProfile || {};
+ document.getElementById('cfgCompName').value=profile.name || '';
+ document.getElementById('cfgVrn').value=profile.vrn || '';
+ document.getElementById('cfgAddress').value=profile.address || '';
+ window.pendingCompanyLogo=profile.logoUrl || '';
+ renderCompanyLogo('cfgLogoPreview',window.pendingCompanyLogo);
+}
+async function handleLogoUpload(event) {
+ const file=event.target.files[0];if (!file) return;
+ if (!['image/png','image/jpeg','image/webp'].includes(file.type) || !file.size || file.size>2*1024*1024) {showToast('Choose a PNG, JPG or WEBP logo up to 2 MB.','error');event.target.value='';return;}
+ window.companyLogoLoading=true;
+ try {
+  const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Unable to read logo.'));reader.readAsDataURL(file);});
+  await new Promise((resolve,reject)=>{const image=new Image();image.onload=resolve;image.onerror=()=>reject(Error('Unable to open this logo image.'));image.src=data;});
+  window.pendingCompanyLogo=data;renderCompanyLogo('cfgLogoPreview',data);
+ } catch(error) {showToast(error.message,'error');}
+ finally {window.companyLogoLoading=false;event.target.value='';}
+}
+function removeCompanyLogo() {
+ if (window.companyLogoLoading) return;
+ window.pendingCompanyLogo='';renderCompanyLogo('cfgLogoPreview','');
+}
+async function saveCompanyProfile() {
+ if (window.companyLogoLoading) {showToast('Wait for the logo to finish loading.','error');return;}
+ const previous=JSON.parse(JSON.stringify(appState));
+ try {
+  appState.companyProfile={...appState.companyProfile,name:document.getElementById('cfgCompName').value.trim(),vrn:document.getElementById('cfgVrn').value.trim(),address:document.getElementById('cfgAddress').value.trim(),logoUrl:window.pendingCompanyLogo ?? appState.companyProfile?.logoUrl ?? ''};
+  await saveState();renderCompanyProfile();showToast('Company profile and logo saved.');
+ } catch(error) {appState=previous;showToast('Unable to save company settings. Existing profile was preserved.','error');}
+}
+
         function openInvoiceModal(docType = 'Invoice') {
+            document.getElementById('invoiceForm').reset();
             document.getElementById('invDocType').value = docType;
+            renderCompanyLogo('invCompanyLogo',appState.companyProfile?.logoUrl);
+            document.getElementById('invPaymentFields').classList.toggle('hidden',docType !== 'Invoice');
+            document.getElementById('invInitialPaymentDate').value=new Date().toISOString().slice(0,10);
             document.getElementById('invModalTitle').innerText = docType === 'Invoice' ? 'Create Sales Invoice' : 'Issue Sales Return / Credit Note';
             document.getElementById('invNumber').value = (docType === 'Invoice' ? 'INV-' : 'CN-') + Math.floor(1000 + Math.random() * 9000);
             document.getElementById('invDate').value = new Date().toISOString().split('T')[0];
             document.getElementById('invLinesContainer').innerHTML = '';
             addInvoiceLineItem();
+            recalcInvoiceTotals();
             document.getElementById('invoiceModal').classList.remove('hidden');
         }
 
@@ -1769,66 +1832,53 @@
                 const vatRateVal = row.querySelector('.inv-vat').value;
                 const vatRate = vatRateVal === 'EXEMPT' ? 0 : parseFloat(vatRateVal) || 0;
 
-                const lineNet = qty * price;
-                const lineVat = lineNet * (vatRate / 100);
+                const money=value=>Math.round(value*100)/100;
+                const lineNet = money(qty * price);
+                const lineVat = money(lineNet * (vatRate / 100));
 
-                totalNet += lineNet;
-                totalVat += lineVat;
+                totalNet = money(totalNet + lineNet);
+                totalVat = money(totalVat + lineVat);
             });
 
             document.getElementById('invCalcNet').innerText = `£${totalNet.toFixed(2)}`;
             document.getElementById('invCalcVat').innerText = `£${totalVat.toFixed(2)}`;
             document.getElementById('invCalcGross').innerText = `£${(totalNet + totalVat).toFixed(2)}`;
+            const gross=Math.round((totalNet+totalVat)*100)/100;
+            const paid=Number(document.getElementById('invInitialPaymentAmount').value)||0;
+            document.getElementById('invInitialPaymentAmount').max=gross.toFixed(2);
+            document.getElementById('invDraftStatus').textContent=paid>gross ? 'Payment exceeds invoice total' : paid<=0 ? 'Unpaid' : paid<gross ? 'Partially Paid' : 'Paid';
         }
 
         async function saveInvoice(e) {
-            e.preventDefault();
-            const docType = document.getElementById('invDocType').value;
-            const items = [];
-            document.querySelectorAll('.inv-line-row').forEach(row => {
-                items.push({
-                    desc: row.querySelector('.inv-desc').value,
-                    qty: parseFloat(row.querySelector('.inv-qty').value) || 1,
-                    price: parseFloat(row.querySelector('.inv-price').value) || 0,
-                    vatRate: row.querySelector('.inv-vat').value
-                });
-            });
-
-            let net = 0, vat = 0;
-            items.forEach(i => {
-                const lNet = i.qty * i.price;
-                const r = i.vatRate === 'EXEMPT' ? 0 : parseFloat(i.vatRate) || 0;
-                net += lNet;
-                vat += lNet * (r / 100);
-            });
-
-            const doc = {
-                id: document.getElementById('invNumber').value,
-                invNo: document.getElementById('invNumber').value,
-                type: docType,
-                customer: document.getElementById('invCustomer').value,
-                date: document.getElementById('invDate').value,
-                items: items,
-                totalNet: net,
-                totalVat: vat,
-                totalGross: net + vat,
-                status: docType === 'Credit Note' ? 'Returned' : 'Unpaid'
-            };
-
-            appState.invoices.unshift(doc);
-            if (window.EvergreenCustomers) {
-                const customerAccount = window.EvergreenCustomers.ensureCustomer(appState, doc.customer);
-                if (customerAccount) doc.customerId = customerAccount.id;
-            }
-            if (window.EvergreenLedger) {
-                appState.ledgerEntries.push(window.EvergreenLedger.fromDocument(docType, doc));
-            }
-            await saveState();
-            closeModal('invoiceModal');
-            renderSalesTable();
-            renderDashboard();
-            showToast(`${docType} saved successfully!`);
-        }
+ e.preventDefault();
+ const previous=JSON.parse(JSON.stringify(appState));
+ try {
+  if (typeof window.EvergreenPayments?.paymentSummary !== 'function') throw Error('Invoice update is loading. Close and reopen Evergreen, then refresh.');
+  const docType=document.getElementById('invDocType').value;
+  const items=[];
+  document.querySelectorAll('.inv-line-row').forEach(row=>{
+   const qty=Number(row.querySelector('.inv-qty').value),price=Number(row.querySelector('.inv-price').value),vatRate=row.querySelector('.inv-vat').value;
+   if (!Number.isFinite(qty) || qty<=0 || !Number.isFinite(price) || price<0) throw Error('Enter valid quantities and prices.');
+   items.push({desc:row.querySelector('.inv-desc').value.trim(),qty,price,vatRate});
+  });
+  if (!items.length) throw Error('Add an invoice line.');
+  const money=value=>Math.round(value*100)/100;
+  let net=0,vat=0;
+  items.forEach(item=>{const amount=money(item.qty*item.price);net=money(net+amount);vat=money(vat+money(amount*(item.vatRate==='EXEMPT' ? 0 : Number(item.vatRate))/100));});
+  const reference=document.getElementById('invNumber').value.trim();
+  if (!reference || appState.invoices.some(item=>item.id===reference || item.invNo===reference)) throw Error('Use a unique document number.');
+  const doc={id:reference,invNo:reference,type:docType,customer:document.getElementById('invCustomer').value.trim(),date:document.getElementById('invDate').value,items,totalNet:net,totalVat:vat,totalGross:money(net+vat),status:docType==='Credit Note' ? 'Returned' : 'Unpaid'};
+  const received=docType==='Invoice' ? money(Number(document.getElementById('invInitialPaymentAmount').value)||0) : 0;
+  if (!Number.isFinite(received) || received<0 || received>doc.totalGross) throw Error('Payment received must be between zero and the invoice total.');
+  const journal=EvergreenLedger.fromDocument(docType,doc);
+  appState.invoices.unshift(doc);
+  if (window.EvergreenCustomers) {const customer=EvergreenCustomers.ensureCustomer(appState,doc.customer);if(customer)doc.customerId=customer.id;}
+  (appState.ledgerEntries ||= []).push(journal);
+  if (received>0) EvergreenPayments.recordPayment(appState,{documentType:'Invoice',documentId:doc.id,amount:received,date:document.getElementById('invInitialPaymentDate').value || doc.date,method:document.getElementById('invInitialPaymentMethod').value,reference:doc.invNo});
+  await saveState();closeModal('invoiceModal');renderSalesTable();renderDashboard();
+  showToast(docType+' saved successfully.');
+ } catch(error) {appState=previous;showToast(error.message || 'Unable to save invoice.','error');}
+}
 
         function renderPurchasesTable() {
             const tbody = document.getElementById('purchasesTableBody');
@@ -2514,62 +2564,39 @@ function suggestExpenseCategory() {
             showToast('CIS subcontractor deduction logged!');
         }
 
-        function previewDocument(type, id) {
-            const doc = type === 'sales' ? appState.invoices.find(i => i.id === id) : appState.bills.find(b => b.id === id);
-            if (!doc) return;
-
-            const area = document.getElementById('printableArea');
-            area.innerHTML = `
-                <div class="flex justify-between items-start border-b border-slate-200 pb-4">
-                    <div>
-                        <h1 class="text-2xl font-bold uppercase tracking-tight ${doc.type.includes('Credit') || doc.type.includes('Debit') ? 'text-rose-600' : 'text-brand-600'}">${doc.type}</h1>
-                        <p class="text-slate-500 font-mono mt-1">Ref #: ${doc.invNo || doc.billNo}</p>
-                        <p class="text-slate-500">Date: ${doc.date}</p>
-                    </div>
-                    <div class="text-right">
-                        <h2 class="font-bold text-slate-800">${appState.companyProfile.name}</h2>
-                        <p class="text-slate-500">${appState.companyProfile.address}</p>
-                        <p class="text-slate-500 font-mono">VRN: ${appState.companyProfile.vrn}</p>
-                    </div>
-                </div>
-
-                <div class="my-4">
-                    <span class="text-slate-400 uppercase text-[10px] font-bold">Billed To:</span>
-                    <p class="font-bold text-slate-800 text-sm mt-0.5">${doc.customer || doc.supplier}</p>
-                </div>
-
-                <table class="w-full text-left my-6 border-collapse">
-                    <thead>
-                        <tr class="border-b border-slate-300 text-slate-500 uppercase text-[10px]">
-                            <th class="py-2">Description</th>
-                            <th class="py-2 text-center">Qty</th>
-                            <th class="py-2 text-right">Price (£)</th>
-                            <th class="py-2 text-right">VAT Rate</th>
-                            <th class="py-2 text-right">Total (£)</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        ${doc.items.map(i => `
-                            <tr>
-                                <td class="py-2 font-medium">${i.desc}</td>
-                                <td class="py-2 text-center">${i.qty}</td>
-                                <td class="py-2 text-right font-mono">£${i.price.toFixed(2)}</td>
-                                <td class="py-2 text-right font-mono">${i.vatRate}%</td>
-                                <td class="py-2 text-right font-mono font-bold">£${(i.qty * i.price).toFixed(2)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-
-                <div class="border-t border-slate-200 pt-4 text-right space-y-1 font-mono">
-                    <p class="text-slate-500">Subtotal Net: <strong>£${doc.totalNet.toFixed(2)}</strong></p>
-                    <p class="text-slate-500">VAT Total: <strong>£${doc.totalVat.toFixed(2)}</strong></p>
-                    <p class="text-base font-bold text-slate-900 mt-2">Total Amount Due: £${doc.totalGross.toFixed(2)}</p>
-                </div>
-            `;
-
-            document.getElementById('previewDocModal').classList.remove('hidden');
-        }
+        function previewDocument(type,id) {
+ const doc=type==='sales' ? appState.invoices.find(item=>item.id===id) : appState.bills.find(item=>item.id===id);
+ if (!doc) return;
+ const escapeText=value=>String(value ?? '').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+ const pounds=value=>'£'+Number(value || 0).toFixed(2);
+ const settlement=['Invoice','Bill'].includes(doc.type) && window.EvergreenPayments?.paymentSummary ? EvergreenPayments.paymentSummary(appState,doc.type,doc.id) : null;
+ const profile=appState.companyProfile || {};
+ const area=document.getElementById('printableArea');
+ area.innerHTML=`
+ <div class="flex justify-between items-start gap-4 border-b border-slate-200 pb-4">
+  <div>
+   <h1 class="text-2xl font-bold uppercase text-brand-600">${escapeText(doc.type)}</h1>
+   <p>Ref #: ${escapeText(doc.invNo || doc.billNo)}</p><p>Date: ${escapeText(doc.date)}</p>
+   <p class="font-bold mt-2">Status: ${escapeText(settlement?.status || doc.status || '')}</p>
+  </div>
+  <div class="text-right"><div id="documentCompanyLogo" class="flex justify-end mb-2"></div>
+   <h2 class="font-bold">${escapeText(profile.name)}</h2>
+   <p style="white-space:pre-line">${escapeText(profile.address)}</p><p>VRN: ${escapeText(profile.vrn)}</p>
+  </div>
+ </div>
+ <div class="my-4"><span class="text-slate-500">${type==='sales' ? 'Billed To:' : 'Supplier:'}</span><p class="font-bold">${escapeText(doc.customer || doc.supplier)}</p></div>
+ <table class="w-full text-left my-6 border-collapse">
+  <thead><tr class="border-b border-slate-300"><th class="py-2">Description</th><th class="py-2 text-center">Qty</th><th class="py-2 text-right">Price (£)</th><th class="py-2 text-right">VAT Rate</th><th class="py-2 text-right">Net Total (£)</th></tr></thead>
+  <tbody>${(doc.items || []).map(item=>`<tr class="border-b border-slate-100"><td class="py-2">${escapeText(item.desc)}</td><td class="py-2 text-center">${escapeText(item.qty)}</td><td class="py-2 text-right">${pounds(item.price)}</td><td class="py-2 text-right">${item.vatRate==='EXEMPT' ? 'Exempt' : escapeText(item.vatRate)+'%'}</td><td class="py-2 text-right">${pounds(Number(item.qty)*Number(item.price))}</td></tr>`).join('')}</tbody>
+ </table>
+ <div class="border-t border-slate-200 pt-4 text-right space-y-1">
+  <p>Subtotal Net: <strong>${pounds(doc.totalNet)}</strong></p><p>VAT Total: <strong>${pounds(doc.totalVat)}</strong></p>
+  <p class="font-bold">Document Total: ${pounds(doc.totalGross)}</p>
+  ${settlement ? `<p>Paid to date: <strong>${pounds(settlement.paid)}</strong></p><p class="font-bold text-brand-600">Amount Outstanding: ${pounds(settlement.outstanding)}</p>` : ''}
+ </div>`;
+ renderCompanyLogo('documentCompanyLogo',profile.logoUrl);
+ document.getElementById('previewDocModal').classList.remove('hidden');
+}
 
         function openPaymentModal(documentType, documentId) {
             if (!window.EvergreenPayments) return;
@@ -2748,7 +2775,7 @@ function suggestExpenseCategory() {
     <script src="js/core/ledger.js"></script>
     <script src="js/core/customers.js"></script>
     <script src="js/core/suppliers.js"></script>
-    <script src="js/core/payments.js"></script>
+    <script src="js/core/payments.js?v=invoice-branding-1"></script>
     <script src="js/core/banking.js"></script>
     <script src="js/core/receipts.js?v=receipt-storage-1"></script>
     <script src="js/core/reports.js"></script>
