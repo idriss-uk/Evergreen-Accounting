@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title>Evergreen Accounting</title>
+  <rect width="512" height="512" rx="112" fill="#556B2F"/>
+  <path d="M256 86c-69 52-116 113-116 180 0 67 50 121 116 121s116-54 116-121c0-67-47-128-116-180Z" fill="#F5F7F0"/>
+  <path d="M255 150v232M255 229c-36-2-69-18-94-46M255 276c40-4 74-22 101-52M255 323c-29-2-57-14-80-34" fill="none" stroke="#556B2F" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M210 410h92" stroke="#F5F7F0" stroke-width="20" stroke-linecap="round"/>
+</svg>
