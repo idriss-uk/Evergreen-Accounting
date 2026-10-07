@@ -1,0 +1,18 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),{execFileSync}=require('node:child_process');
+const root=path.resolve(__dirname,'..');process.chdir(root);
+const output='assets/vendor';fs.mkdirSync(output,{recursive:true});
+execFileSync(process.execPath,[require.resolve('tailwindcss/lib/cli.js'),'-c','tailwind.config.cjs','-i','scripts/styles.css','-o',output+'/utilities.css','--minify'],{stdio:'inherit'});
+fs.copyFileSync('node_modules/chart.js/dist/chart.umd.js',output+'/chart-4.4.8.umd.js');
+let icons=fs.readFileSync('node_modules/@fortawesome/fontawesome-free/css/all.min.css','utf8');
+icons=icons.replace(/@font-face\{[^}]*\}/g,face=>face.includes('Font Awesome 6')?face:'');
+icons=icons.replace(/,url\([^)]*\.ttf\) format\("truetype"\)/g,'');
+icons=icons.replace(/url\(\.\.\/webfonts\/([^)]*\.woff2)\)/g,(_,file)=>'url(data:font/woff2;base64,'+fs.readFileSync('node_modules/@fortawesome/fontawesome-free/webfonts/'+file).toString('base64')+')');
+fs.writeFileSync(output+'/icons-6.4.0.css',icons);
+const fonts=[300,400,500,600,700].map(weight=>`@font-face{font-family:Inter;font-style:normal;font-weight:${weight};font-display:swap;src:url(data:font/woff2;base64,${fs.readFileSync('node_modules/@fontsource/inter/files/inter-latin-'+weight+'-normal.woff2').toString('base64')}) format('woff2')}`).join('\n');
+fs.writeFileSync(output+'/inter-5.2.5.css',fonts);
+fs.copyFileSync('node_modules/@fortawesome/fontawesome-free/LICENSE.txt',output+'/FONT-AWESOME-LICENSE.txt');
+fs.copyFileSync('node_modules/@fontsource/inter/LICENSE',output+'/INTER-LICENSE.txt');
+fs.copyFileSync('node_modules/chart.js/LICENSE.md',output+'/CHART-LICENSE.md');
+fs.copyFileSync('node_modules/tailwindcss/LICENSE',output+'/TAILWIND-LICENSE.txt');
+console.log('Local offline assets rebuilt.');

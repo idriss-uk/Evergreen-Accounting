@@ -1,0 +1,87 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
+const {chromium}=require('playwright');
+const root=path.resolve(__dirname,'..');
+const mime={'.html':'text/html','.css':'text/css','.js':'text/javascript','.json':'application/json','.svg':'image/svg+xml'};
+async function run(){
+ const server=http.createServer((req,res)=>{
+  const url=new URL(req.url,'http://localhost');let name=url.pathname.replace(/^\/Evergreen-Accounting\//,'');
+  if(name===url.pathname){res.writeHead(404);res.end();return;}
+  if(!name)name='index.html';const file=path.resolve(root,name);
+  if(!file.startsWith(root+path.sep)||!fs.existsSync(file)||fs.statSync(file).isDirectory()){res.writeHead(404);res.end();return;}
+  res.writeHead(200,{'content-type':mime[path.extname(file)]||'application/octet-stream','cache-control':'no-cache'});fs.createReadStream(file).pipe(res);
+ });
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const url=`http://127.0.0.1:${server.address().port}/Evergreen-Accounting/`;
+ const executable=process.env.CHROME_PATH||['C:/Program Files/Google/Chrome/Application/chrome.exe','C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].find(file=>fs.existsSync(file));
+ let browser;
+ try {
+  browser=await chromium.launch({headless:true,...(executable?{executablePath:executable}:{})});
+  const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true});
+  await context.addInitScript(()=>{caches.open('other-project-cache').then(cache=>cache.put('marker',new Response('keep')));});
+  const page=await context.newPage(),errors=[],external=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  page.on('request',request=>{if(!request.url().startsWith(url)&&!request.url().startsWith('data:')&&!request.url().startsWith('blob:'))external.push(request.url());});
+  await page.goto(url,{waitUntil:'networkidle'});
+  await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  await page.evaluate(()=>navigator.serviceWorker.ready);
+  await page.waitForFunction(()=>navigator.serviceWorker.controller);
+  assert.equal(await page.evaluate(()=>caches.has('other-project-cache')),true);
+  const startingProfit=await page.evaluate(()=>EvergreenReports.profitAndLoss(appState).netProfit);
+  const image=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=600;canvas.height=200;const ctx=canvas.getContext('2d');ctx.fillStyle='#556B2F';ctx.fillRect(0,0,600,200);ctx.fillStyle='#fff';ctx.font='48px Arial';ctx.fillText('TEST RECEIPT',30,115);return canvas.toDataURL('image/png').split(',')[1];});
+  await context.setOffline(true);
+  await page.reload({waitUntil:'networkidle'});
+  await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  assert.equal(await page.evaluate(()=>getComputedStyle(document.getElementById('storageBusy')).display),'none');
+  assert.equal(await page.evaluate(()=>typeof Chart),'function');
+  await page.evaluate(()=>document.fonts.ready);
+  await page.evaluate(()=>document.fonts.load('400 16px Inter'));
+  assert.equal(await page.evaluate(()=>document.fonts.check('400 16px Inter')),true);
+  assert.ok((await page.evaluate(()=>getComputedStyle(document.body).fontFamily)).includes('Inter'));
+  await page.locator('#tabBtn-expenses').click();
+  await page.locator('#tab-expenses button').filter({hasText:'Log Expense & Attach Receipt'}).click();
+  await page.locator('#expMerchant').fill('Offline Reliability Test');
+  await page.locator('#expCategory').selectOption('Software & IT');
+  await page.locator('#expNet').fill('17.99');
+  await page.locator('#expVatRate').selectOption('20');
+  await page.locator('#expFileInput').setInputFiles({name:'offline-receipt.png',mimeType:'image/png',buffer:Buffer.from(image,'base64')});
+  await page.waitForFunction(()=>document.getElementById('expFileName').textContent.includes('Ready'));
+  await page.locator('#expenseSaveButton').click();
+  await page.waitForFunction(()=>document.getElementById('expenseModal').classList.contains('hidden'));
+  await page.reload({waitUntil:'networkidle'});
+  await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  await page.locator('#tabBtn-expenses').click();
+  const expenseRow=page.locator('#expensesTableBody tr').filter({hasText:'Offline Reliability Test'});
+  assert.equal(await expenseRow.count(),1);
+  await expenseRow.getByRole('button',{name:/View Receipt/}).click();
+  assert.equal(await page.locator('#receiptViewerContent img').evaluate(img=>img.complete&&img.naturalWidth===600),true);
+  await page.evaluate(()=>closeModal('receiptViewerModal'));
+  await page.locator('#tabBtn-sales').click();
+  await page.locator('#tab-sales button').filter({hasText:'Create Sales Invoice'}).click();
+  await page.locator('#invCustomer').fill('Offline Test Customer');
+  await page.locator('#invNumber').fill('INV-OFFLINE-TEST');
+  await page.locator('#invDate').fill('2026-10-07');
+  await page.locator('.inv-desc').fill('Offline test sale');
+  await page.locator('.inv-price').fill('100');
+  await page.locator('.inv-vat').selectOption('20');
+  await page.locator('#invoiceForm button[type=submit]').click();
+  await page.waitForFunction(()=>document.getElementById('invoiceModal').classList.contains('hidden'));
+  await page.locator('#tabBtn-bank').click();
+  const csv='Date,Description,Amount\n07/10/2026,Offline Test Customer INV-OFFLINE-TEST,40\n07/10/2026,Offline Test Customer INV-OFFLINE-TEST,80';
+  await page.locator('#bankCsvInput').setInputFiles({name:'offline-bank.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
+  await page.waitForFunction(()=>appState.bankTransactions.filter(tx=>tx.description.includes('INV-OFFLINE-TEST')).length===2);
+  await page.getByRole('button',{name:/Run Smart Match/}).click();
+  await page.waitForFunction(()=>EvergreenPayments.outstandingAmount(appState,'Invoice','INV-OFFLINE-TEST')===0);
+  await page.reload({waitUntil:'networkidle'});
+  await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  const result=await page.evaluate(()=>({status:EvergreenPayments.paymentSummary(appState,'Invoice','INV-OFFLINE-TEST').status,payments:appState.payments.filter(p=>p.documentId==='INV-OFFLINE-TEST').length,difference:EvergreenReports.trialBalance(appState).totalDebit-EvergreenReports.trialBalance(appState).totalCredit,profit:EvergreenReports.profitAndLoss(appState).netProfit,receipt:appState.expenses.find(e=>e.merchant==='Offline Reliability Test').attachment}));
+  assert.equal(result.status,'Paid');assert.equal(result.payments,2);assert.equal(result.difference,0);assert.equal(Math.round((result.profit-startingProfit)*100),8201);assert.ok(result.receipt.startsWith('data:image/png;'));
+  await page.locator('#tabBtn-reports').click();
+  await page.getByRole('button',{name:'Trial Balance',exact:true}).click();
+  fs.mkdirSync(path.join(root,'test-results'),{recursive:true});
+  await page.screenshot({path:path.join(root,'test-results/offline-reports.png'),fullPage:true});
+  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
+  console.log('PASS: native Chromium offline layout, fonts, charts, receipt save/refresh/preview, invoice, bank import and payments, report balances and isolated cache preservation.');
+ } finally {await browser?.close();await new Promise(resolve=>server.close(resolve));}
+}
+run().catch(error=>{console.error(error);process.exitCode=1;});
