@@ -216,3 +216,64 @@ body {
     padding-right: 0.75rem;
   }
 }
+
+
+/* Desktop workspace with Evergreen green navigation. */
+.evergreen-sidebar, .desktop-workspace-heading { display: none; }
+@media screen and (min-width: 768px) {
+ :root { --sidebar-width: 244px; }
+ .app-shell { margin-left: var(--sidebar-width); min-width: 0; }
+ .evergreen-sidebar {
+  position: fixed; inset: 0 auto 0 0; width: var(--sidebar-width); z-index: 40;
+  display: flex; flex-direction: column; padding: 26px 16px 18px; box-sizing: border-box;
+  background: #193c32; color: #e8eee5; border-right: 1px solid #284b3f;
+ }
+ .sidebar-brand { display: flex; align-items: center; gap: 12px; padding: 0 8px 24px; }
+ .sidebar-brand-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #dce8b3; color: #28482a; font-size: 20px; }
+ .sidebar-brand strong { display: block; font-size: 21px; line-height: 1.15; letter-spacing: -0.4px; }
+ .sidebar-brand span:not(.sidebar-brand-icon) { display: block; font-size: 12px; color: #b9cfc0; margin-top: 3px; }
+ .sidebar-workspace { display: flex; flex-direction: column; gap: 6px; margin: 0 3px 24px; padding: 14px; border-radius: 13px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); }
+ .sidebar-workspace strong { font-size: 13px; overflow-wrap: anywhere; line-height: 1.4; }
+ .sidebar-workspace > span:last-child { font-size: 11px; color: #b5cbbd; }
+ .sidebar-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1.7px; color: #9fbda8; }
+ .sidebar-nav-heading { padding: 0 13px 10px; }
+ .evergreen-sidebar .sidebar-navigation {
+  display: flex !important; flex-direction: column; gap: 4px; flex: 1; min-height: 0;
+  padding: 0 2px 8px !important; border: 0 !important; overflow-x: hidden; overflow-y: auto;
+ }
+ .evergreen-sidebar .nav-tab {
+  width: 100%; min-height: 42px; flex-shrink: 0; margin: 0 !important; padding: 10px 12px !important;
+  display: flex; align-items: center; justify-content: flex-start; gap: 10px;
+  text-align: left; white-space: normal; line-height: 1.35; font-size: 12px;
+  font-weight: 500; border-radius: 10px; color: #d0dfd3 !important;
+  background: transparent !important; transition: background .15s ease;
+ }
+ .evergreen-sidebar .nav-tab i { width: 17px; text-align: center; flex-shrink: 0; color: inherit !important; }
+ .evergreen-sidebar .nav-tab:hover { background: rgba(255,255,255,.08) !important; }
+ #evergreenSidebar .nav-tab[aria-current="page"] { background: #dce8b3 !important; color: #234535 !important; font-weight: 700; }
+ .evergreen-sidebar .nav-tab:focus-visible { outline: 2px solid #e2edc6; outline-offset: -2px; }
+ .sidebar-local { display: flex; align-items: flex-start; gap: 10px; margin: 15px 3px 0; padding: 13px 10px; border-top: 1px solid rgba(255,255,255,.12); color: #c6d7ca; }
+ .sidebar-local i { margin-top: 2px; font-size: 13px; }
+ .sidebar-local strong { display: block; font-size: 11px; }
+ .sidebar-local span { display: block; margin-top: 4px; font-size: 10px; line-height: 1.4; color: #a9c2b1; }
+ .app-header .header-brand { display: none; }
+ .app-header > .max-w-7xl { max-width: none; padding-left: 28px; padding-right: 28px; }
+ .desktop-workspace-heading { display: flex; flex-direction: column; gap: 3px; }
+ .desktop-workspace-heading span { font-size: 9px; letter-spacing: 1.5px; color: #71806c; font-weight: 700; }
+ .desktop-workspace-heading strong { font-size: 16px; color: #28482a; }
+ .dark .desktop-workspace-heading strong { color: #e1eacb; }
+ .app-main { max-width: none; padding: 26px 28px; min-width: 0; }
+ #localStorageStatus { margin-left: var(--sidebar-width); padding: 5px 12px; font-size: 10px; }
+}
+@media screen and (min-width: 768px) and (max-width: 1199px) {
+ :root { --sidebar-width: 220px; }
+ .app-main { padding: 20px; }
+ #tab-dashboard > .grid:first-child { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media screen and (max-width: 767px) {
+ .app-header .header-brand { min-width: 0; gap: 8px; }
+ .header-brand > div:last-child { min-width: 0; }
+ .header-brand > div:last-child > span:first-child { font-size: 14px; line-height: 1.15; }
+ .header-brand > div:last-child > span:last-child { display: none; }
+ .app-header > .max-w-7xl > .flex { gap: 10px; }
+}
