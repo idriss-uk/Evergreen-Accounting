@@ -1,4 +1,4 @@
-const CACHE_NAME = 'evergreen-v5-shell-v4-test';
+const CACHE_NAME = 'evergreen-v5-shell-v4';
 const APP_SHELL = [
   './',
   './index.html',
