@@ -327,6 +327,31 @@
     return applyMatch(state, tx, tx.suggestedType, tx.suggestedId);
   }
 
+  function matchTransaction(state, txId, type, id) {
+    const tx = (state.bankTransactions || []).find((item) => item.id === txId);
+    if (!tx) throw new Error('Bank transaction not found');
+    if (!['Invoice', 'Bill'].includes(type)) throw new Error('Unsupported match type');
+    return applyMatch(state, tx, type, id);
+  }
+
+  function outstandingDocuments(state, txId) {
+    const tx = (state.bankTransactions || []).find((item) => item.id === txId);
+    if (!tx) return [];
+
+    const docs = tx.amount >= 0
+      ? (state.invoices || []).filter((doc) => doc.type === 'Invoice').map((doc) => ({ type: 'Invoice', doc }))
+      : (state.bills || []).filter((doc) => doc.type === 'Bill').map((doc) => ({ type: 'Bill', doc }));
+
+    return docs.map(({ type, doc }) => ({
+      type,
+      id: doc.id,
+      reference: doc.invNo || doc.billNo || doc.id,
+      party: doc.customer || doc.supplier || '',
+      date: doc.date,
+      outstanding: documentOutstanding(state, type, doc)
+    })).filter((item) => item.outstanding > 0);
+  }
+
   function reconciliationSummary(state, openingBalance = 0) {
     const transactions = (state.bankTransactions || []).filter((tx) => tx.status !== 'Duplicate');
     const movement = roundMoney(transactions.reduce((sum, tx) => sum + roundMoney(tx.amount), 0));
@@ -355,6 +380,8 @@
     importRows,
     runAutoMatch,
     acceptSuggestion,
+    matchTransaction,
+    outstandingDocuments,
     reconciliationSummary
   });
 })();
