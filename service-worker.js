@@ -1,9 +1,13 @@
-const CACHE_NAME = 'evergreen-v5-shell-v17';
+const CACHE_NAME = 'evergreen-v5-shell-v18';
 const APP_SHELL = [
   './',
   './index.html',
   './css/app.css?v=sidebar-1',
   './js/app.js',
+  './assets/vendor/utilities.css?v=offline-assets-1',
+  './assets/vendor/inter-5.2.5.css',
+  './assets/vendor/icons-6.4.0.css',
+  './assets/vendor/chart-4.4.8.umd.js',
   './js/core/state.js',
   './js/core/storage.js?v=receipt-storage-1',
   './js/core/ledger.js',
@@ -30,7 +34,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+        keys.filter((key) => key.startsWith('evergreen-v5-shell-') && key !== CACHE_NAME).map((key) => caches.delete(key))
       ))
       .then(() => self.clients.claim())
   );
@@ -46,6 +50,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
+          if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) throw new Error('Application page unavailable');
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
           return response;
@@ -69,3 +74,4 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
