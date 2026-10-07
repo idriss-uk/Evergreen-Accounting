@@ -32,4 +32,14 @@ assert.throws(()=>api.parseCsv('Date,Description,Amount\n31/02/2026,Invalid,10')
 assert.throws(()=>api.parseCsv('Date,Description,Amount\n07/10/2026,"unfinished,10'));
 const separate=api.parseCsv('Date;Description;Debit;Credit\n07/10/2026;Test Customer INV-T1;;120\n07/10/2026;Test Supplier BIL-T1;60;');
 assert.equal(separate[0].amount,120);assert.equal(separate[1].amount,-60);
-console.log('Bank reconciliation regression checks passed.');
+const accountingBefore=JSON.stringify([state.invoices,state.bills,state.payments,state.ledgerEntries]);
+const removable=state.bankTransactions.find(tx=>tx.status==='Unmatched');
+assert.equal(api.removeTransactions(state,[removable.id]).count,1);
+assert.equal(JSON.stringify([state.invoices,state.bills,state.payments,state.ledgerEntries]),accountingBefore);
+const protectedRow=state.bankTransactions.find(tx=>tx.status==='Matched');
+const snapshot=JSON.stringify(state);
+assert.throws(()=>api.removeTransactions(state,[protectedRow.id]));
+assert.equal(JSON.stringify(state),snapshot);
+assert.throws(()=>api.removeTransactions(state,['missing']));
+assert.equal(JSON.stringify(state),snapshot);
+console.log('Bank reconciliation and removal regression checks passed.');
