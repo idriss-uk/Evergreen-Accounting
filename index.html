@@ -520,34 +520,47 @@
 
             <!-- 5. BANK RECONCILIATION VIEW -->
             <section id="tab-bank" class="tab-content hidden space-y-6">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div>
-                        <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Bank Statement Reconciliation Engine</h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">Parse CSV bank feeds, execute auto-matching against ledger entries, and run smart categorization rules.</p>
+                        <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Bank Reconciliation & Automation</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Import bank CSVs, detect duplicates, categorise transactions, and match by amount, date, reference, and counterparty.</p>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-end gap-2">
+                        <div>
+                            <label class="block text-[10px] uppercase font-semibold text-slate-400 mb-1">Opening Balance (£)</label>
+                            <input id="bankOpeningBalance" type="number" step="0.01" onchange="saveBankOpeningBalance()" class="w-36 px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" value="0.00">
+                        </div>
                         <button onclick="triggerAutoMatch()" class="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center gap-1.5 shadow-sm">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> Run Auto-Match Engine
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Run Smart Match
                         </button>
                     </div>
                 </div>
 
-                <!-- CSV Drag and Drop Box -->
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                    <div class="glass-panel p-4 rounded-2xl"><div class="text-[10px] uppercase text-slate-400 font-semibold">Statement Movement</div><div id="bankMovement" class="text-lg font-bold mt-1">£0.00</div></div>
+                    <div class="glass-panel p-4 rounded-2xl"><div class="text-[10px] uppercase text-slate-400 font-semibold">Closing Balance</div><div id="bankClosingBalance" class="text-lg font-bold mt-1">£0.00</div></div>
+                    <div class="glass-panel p-4 rounded-2xl"><div class="text-[10px] uppercase text-slate-400 font-semibold">Reconciled Balance</div><div id="bankReconciledBalance" class="text-lg font-bold mt-1 text-emerald-600">£0.00</div></div>
+                    <div class="glass-panel p-4 rounded-2xl"><div class="text-[10px] uppercase text-slate-400 font-semibold">Unmatched Movement</div><div id="bankUnmatchedMovement" class="text-lg font-bold mt-1 text-amber-600">£0.00</div></div>
+                    <div class="glass-panel p-4 rounded-2xl"><div class="text-[10px] uppercase text-slate-400 font-semibold">Match Progress</div><div id="bankMatchProgress" class="text-lg font-bold mt-1">0 / 0</div></div>
+                </div>
+
                 <div class="glass-panel p-6 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-center hover:border-brand-500 transition cursor-pointer" onclick="document.getElementById('bankCsvInput').click()">
-                    <input type="file" id="bankCsvInput" accept=".csv" class="hidden" onchange="handleBankCsvUpload(event)">
+                    <input type="file" id="bankCsvInput" accept=".csv,text/csv" class="hidden" onchange="handleBankCsvUpload(event)">
                     <div class="flex flex-col items-center gap-2">
-                        <div class="w-12 h-12 rounded-full bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400 flex items-center gap-0 justify-center">
+                        <div class="w-12 h-12 rounded-full bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400 flex items-center justify-center">
                             <i class="fa-solid fa-file-csv text-2xl"></i>
                         </div>
-                        <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Click or Drag & Drop Bank Statement CSV</p>
-                        <p class="text-xs text-slate-400">Supports HSBC, Barclays, Lloyds, Revolut, Starling CSV headers (Date, Description, Amount)</p>
+                        <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Import Bank Statement CSV</p>
+                        <p class="text-xs text-slate-400">Handles quoted commas and Date + Description + Amount, or separate Debit / Credit columns. Duplicate rows are skipped.</p>
                     </div>
                 </div>
 
-                <!-- Unmatched / Matched Bank Transactions Table -->
                 <div class="glass-panel rounded-2xl shadow-sm overflow-hidden">
-                    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Statement Transactions</h3>
+                    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Statement Transactions</h3>
+                            <p class="text-[10px] text-slate-400">High-confidence matches (85%+) reconcile automatically; lower-confidence matches remain suggestions for review.</p>
+                        </div>
                         <span id="reconMatchStats" class="text-xs px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 font-medium">0 Unmatched Lines</span>
                     </div>
                     <div class="overflow-x-auto">
@@ -555,16 +568,15 @@
                             <thead class="bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase">
                                 <tr>
                                     <th class="p-4">Date</th>
-                                    <th class="p-4">Bank Description</th>
+                                    <th class="p-4">Description</th>
+                                    <th class="p-4">Category</th>
                                     <th class="p-4 text-right">Amount (£)</th>
                                     <th class="p-4 text-center">Status</th>
-                                    <th class="p-4">Matched Ledger Entry</th>
+                                    <th class="p-4">Match / Confidence</th>
                                     <th class="p-4 text-right">Action</th>
                                 </tr>
                             </thead>
-                            <tbody id="bankTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
-                                <!-- Dynamic JS content -->
-                            </tbody>
+                            <tbody id="bankTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
                         </table>
                     </div>
                 </div>
@@ -1224,6 +1236,31 @@
         </div>
     </div>
 
+    <!-- V5.3 MANUAL BANK MATCH MODAL -->
+    <div id="bankMatchModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="glass-panel bg-white dark:bg-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3">
+                <div>
+                    <h3 class="text-base font-bold">Choose Accounting Match</h3>
+                    <p id="bankMatchTxSummary" class="text-xs text-slate-500 mt-1"></p>
+                </div>
+                <button onclick="closeModal('bankMatchModal')" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="saveManualBankMatch(event)" class="space-y-3 text-xs">
+                <input type="hidden" id="bankManualTxId">
+                <div>
+                    <label class="block font-medium mb-1">Outstanding Invoice / Bill</label>
+                    <select id="bankManualDocument" required class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"></select>
+                </div>
+                <p class="text-[10px] text-slate-400">The bank amount will be applied up to the document's remaining outstanding balance and recorded through the payment ledger.</p>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('bankMatchModal')" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-brand-600 text-white font-semibold">Confirm Match</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- MODAL 6: CIS SUBCONTRACTOR PAYMENT MODAL -->
     <div id="cisModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div class="glass-panel bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
@@ -1420,6 +1457,7 @@
 
             if (tabId === 'dashboard') renderDashboard();
             if (tabId === 'contacts') renderContacts();
+            if (tabId === 'bank') renderBankTable();
             if (tabId === 'reports' && typeof renderReports === 'function') renderReports();
             if (tabId === 'mtd') renderMtdBoxCalculations();
         }
@@ -1998,93 +2036,175 @@
             document.getElementById('receiptViewerModal').classList.remove('hidden');
         }
 
+        function bankStatusClass(status) {
+            if (status === 'Matched') return 'bg-emerald-100 text-emerald-700';
+            if (status === 'Suggested') return 'bg-brand-100 text-brand-700';
+            if (status === 'Duplicate') return 'bg-rose-100 text-rose-700';
+            return 'bg-amber-100 text-amber-700';
+        }
+
         function renderBankTable() {
             const tbody = document.getElementById('bankTableBody');
-            tbody.innerHTML = '';
-            let unmatchedCount = 0;
+            if (!tbody || !window.EvergreenBanking) return;
 
             appState.bankTransactions.forEach(tx => {
-                if (tx.status === 'Unmatched') unmatchedCount++;
+                if (tx.status !== 'Matched' && tx.status !== 'Duplicate') {
+                    window.EvergreenBanking.analyseTransaction(appState, tx);
+                }
+            });
+
+            const opening = Number(appState.bankReconciliation?.openingBalance) || 0;
+            const summary = window.EvergreenBanking.reconciliationSummary(appState, opening);
+            document.getElementById('bankOpeningBalance').value = opening.toFixed(2);
+            document.getElementById('bankMovement').innerText = `£${summary.movement.toFixed(2)}`;
+            document.getElementById('bankClosingBalance').innerText = `£${summary.closingBalance.toFixed(2)}`;
+            document.getElementById('bankReconciledBalance').innerText = `£${summary.reconciledBalance.toFixed(2)}`;
+            document.getElementById('bankUnmatchedMovement').innerText = `£${summary.unmatchedMovement.toFixed(2)}`;
+            document.getElementById('bankMatchProgress').innerText = `${summary.matchedCount} / ${summary.matchedCount + summary.unmatchedCount}`;
+            document.getElementById('reconMatchStats').innerText = `${summary.unmatchedCount} To Review · ${summary.duplicateCount} Duplicates Skipped`;
+
+            const categories = ['Sales / Other Income','Bank Fees','Software & IT','Travel & Meals','Rent & Utilities','Advertising & Marketing','Office Supplies','Tax & HMRC','Payroll & Wages','Internal Transfer','Uncategorised Expense'];
+
+            tbody.innerHTML = '';
+            appState.bankTransactions.forEach(tx => {
                 const tr = document.createElement('tr');
+                const matchText = tx.status === 'Matched'
+                    ? `${tx.matchedType} (${tx.matchedId})`
+                    : tx.suggestedId
+                        ? `${tx.suggestedType} ${tx.suggestedReference || tx.suggestedId} · ${tx.matchScore}%`
+                        : 'No confident match';
+                const actions = tx.status === 'Matched'
+                    ? '<span class="text-emerald-600 font-bold"><i class="fa-solid fa-check"></i> Reconciled</span>'
+                    : tx.status === 'Suggested'
+                        ? `<div class="flex justify-end gap-1"><button onclick="acceptBankSuggestion('${tx.id}')" class="px-2.5 py-1 rounded-lg bg-brand-600 text-white font-semibold">Accept</button><button onclick="openManualBankMatch('${tx.id}')" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 font-semibold">Choose</button></div>`
+                        : `<button onclick="openManualBankMatch('${tx.id}')" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 font-semibold">Choose Match</button>`;
+
                 tr.innerHTML = `
-                    <td class="p-4 font-mono">${tx.date}</td>
-                    <td class="p-4 font-medium">${tx.description}</td>
-                    <td class="p-4 text-right font-mono font-bold ${tx.amount < 0 ? 'text-rose-500' : 'text-emerald-600'}">£${tx.amount.toFixed(2)}</td>
-                    <td class="p-4 text-center">
-                        <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${tx.status === 'Matched' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${tx.status}</span>
+                    <td class="p-4 font-mono whitespace-nowrap">${tx.date}</td>
+                    <td class="p-4 font-medium min-w-52">${tx.description}</td>
+                    <td class="p-4">
+                        <select onchange="updateBankCategory('${tx.id}', this.value)" class="min-w-40 px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                            ${categories.map(category => `<option value="${category}" ${category === tx.category ? 'selected' : ''}>${category}</option>`).join('')}
+                        </select>
                     </td>
-                    <td class="p-4 text-slate-500 font-mono text-xs">${tx.matchedId ? `${tx.matchedType} (${tx.matchedId})` : '—'}</td>
-                    <td class="p-4 text-right">
-                        ${tx.status === 'Unmatched' ? `<button onclick="manualMatchTx('${tx.id}')" class="px-2.5 py-1 rounded-lg bg-brand-50 text-brand-700 font-semibold text-xs hover:bg-brand-100">Match</button>` : `<span class="text-emerald-600 font-bold"><i class="fa-solid fa-check"></i> Reconciled</span>`}
-                    </td>
+                    <td class="p-4 text-right font-mono font-bold ${tx.amount < 0 ? 'text-rose-500' : 'text-emerald-600'}">£${Number(tx.amount).toFixed(2)}</td>
+                    <td class="p-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${bankStatusClass(tx.status)}">${tx.status}</span></td>
+                    <td class="p-4 text-slate-500 text-xs min-w-44">${matchText}</td>
+                    <td class="p-4 text-right">${actions}</td>
                 `;
                 tbody.appendChild(tr);
             });
 
-            document.getElementById('reconMatchStats').innerText = `${unmatchedCount} Unmatched Lines`;
+            if (appState.bankTransactions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400">No bank transactions imported yet.</td></tr>';
+            }
+        }
+
+        function saveBankOpeningBalance() {
+            appState.bankReconciliation = appState.bankReconciliation || {};
+            appState.bankReconciliation.openingBalance = Number(document.getElementById('bankOpeningBalance').value) || 0;
+            saveState();
+            renderBankTable();
+        }
+
+        function updateBankCategory(txId, category) {
+            const tx = appState.bankTransactions.find(item => item.id === txId);
+            if (!tx) return;
+            tx.category = category;
+            saveState();
         }
 
         function triggerAutoMatch() {
-            let matchCount = 0;
-            appState.bankTransactions.forEach(tx => {
-                if (tx.status === 'Unmatched') {
-                    // Try to match Sales Invoices or Bills
-                    const inv = appState.invoices.find(i => Math.abs(i.totalGross - Math.abs(tx.amount)) < 0.01);
-                    if (inv) {
-                        tx.status = 'Matched';
-                        tx.matchedType = inv.type;
-                        tx.matchedId = inv.id;
-                        inv.status = 'Paid';
-                        matchCount++;
-                    } else {
-                        const bill = appState.bills.find(b => Math.abs(b.totalGross - Math.abs(tx.amount)) < 0.01);
-                        if (bill) {
-                            tx.status = 'Matched';
-                            tx.matchedType = bill.type;
-                            tx.matchedId = bill.id;
-                            bill.status = 'Paid';
-                            matchCount++;
-                        }
-                    }
-                }
-            });
-
-            saveState();
-            renderBankTable();
-            renderSalesTable();
-            renderPurchasesTable();
-            renderDashboard();
-            showToast(`Auto-Match completed! Reconciled ${matchCount} lines.`);
+            try {
+                const result = window.EvergreenBanking.runAutoMatch(appState);
+                saveState();
+                renderBankTable();
+                renderSalesTable();
+                renderPurchasesTable();
+                renderContacts();
+                renderDashboard();
+                showToast(`Smart Match: ${result.matched} reconciled automatically, ${result.suggested} suggestions ready for review.`);
+            } catch (error) {
+                showToast(error.message || 'Unable to run bank matching.', 'error');
+            }
         }
 
-        function handleBankCsvUpload(e) {
-            const file = e.target.files[0];
+        function acceptBankSuggestion(txId) {
+            try {
+                window.EvergreenBanking.acceptSuggestion(appState, txId);
+                saveState();
+                renderBankTable();
+                renderSalesTable();
+                renderPurchasesTable();
+                renderContacts();
+                renderDashboard();
+                showToast('Suggested bank match accepted.');
+            } catch (error) {
+                showToast(error.message || 'Unable to accept match.', 'error');
+            }
+        }
+
+        function openManualBankMatch(txId) {
+            const tx = appState.bankTransactions.find(item => item.id === txId);
+            if (!tx) return;
+
+            const options = window.EvergreenBanking.outstandingDocuments(appState, txId);
+            const select = document.getElementById('bankManualDocument');
+            select.innerHTML = options.map(item =>
+                `<option value="${item.type}|${item.id}">${item.reference} · ${item.party} · Outstanding £${item.outstanding.toFixed(2)}</option>`
+            ).join('');
+
+            if (!options.length) {
+                select.innerHTML = '<option value="">No outstanding documents available for this transaction direction</option>';
+            }
+
+            document.getElementById('bankManualTxId').value = txId;
+            document.getElementById('bankMatchTxSummary').innerText = `${tx.date} · ${tx.description} · £${Number(tx.amount).toFixed(2)}`;
+            document.getElementById('bankMatchModal').classList.remove('hidden');
+        }
+
+        function saveManualBankMatch(event) {
+            event.preventDefault();
+            const txId = document.getElementById('bankManualTxId').value;
+            const value = document.getElementById('bankManualDocument').value;
+            if (!value) {
+                showToast('No outstanding document is available to match.', 'error');
+                return;
+            }
+
+            const [type, id] = value.split('|');
+            try {
+                window.EvergreenBanking.matchTransaction(appState, txId, type, id);
+                saveState();
+                closeModal('bankMatchModal');
+                renderBankTable();
+                renderSalesTable();
+                renderPurchasesTable();
+                renderContacts();
+                renderDashboard();
+                showToast('Bank transaction reconciled.');
+            } catch (error) {
+                showToast(error.message || 'Unable to reconcile transaction.', 'error');
+            }
+        }
+
+        function handleBankCsvUpload(event) {
+            const file = event.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
             reader.onload = function(evt) {
-                const text = evt.target.result;
-                const lines = text.split('\n');
-                let count = 0;
-
-                for (let i = 1; i < lines.length; i++) {
-                    const row = lines[i].split(',');
-                    if (row.length >= 3) {
-                        appState.bankTransactions.unshift({
-                            id: 'BNK-' + Math.floor(100 + Math.random() * 900),
-                            date: row[0].trim(),
-                            description: row[1].trim(),
-                            amount: parseFloat(row[2].trim()) || 0,
-                            status: 'Unmatched',
-                            matchedType: null,
-                            matchedId: null
-                        });
-                        count++;
-                    }
+                try {
+                    const rows = window.EvergreenBanking.parseCsv(evt.target.result);
+                    const result = window.EvergreenBanking.importRows(appState, rows);
+                    saveState();
+                    renderBankTable();
+                    showToast(`Imported ${result.imported} transactions. ${result.duplicates} duplicate rows skipped.`);
+                } catch (error) {
+                    showToast(error.message || 'Unable to parse bank CSV.', 'error');
+                } finally {
+                    event.target.value = '';
                 }
-                saveState();
-                renderBankTable();
-                showToast(`Parsed and imported ${count} bank feed transactions!`);
             };
             reader.readAsText(file);
         }
@@ -2535,6 +2655,7 @@
     <script src="js/core/customers.js"></script>
     <script src="js/core/suppliers.js"></script>
     <script src="js/core/payments.js"></script>
+    <script src="js/core/banking.js"></script>
     <script src="js/core/reports.js"></script>
     <script src="js/ui/reports.js"></script>
     <script src="js/app.js"></script>
