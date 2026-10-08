@@ -1262,7 +1262,7 @@
 
 <p id="expCategoryHint" aria-live="polite"></p>
  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
- <label>Payment method<select id="expPayMethod" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"><option>Company Card</option><option>Bank Transfer</option></select></label>
+ <label>Payment method<select id="expPayMethod" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"><option>Company Card</option><option>Bank Transfer</option><option value="Cash">Cash / Petty Cash</option></select></label>
  <label>Receipt reference<input id="expReference" maxlength="100" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"></label></div>
  <label class="block">Notes<textarea id="expNotes" rows="2" maxlength="1000" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"></textarea></label>
  <p class="text-slate-500">Paid business expenses in GBP. Enter receipt figures manually and review VAT. OCR / AI extraction is not available.</p>
@@ -2183,7 +2183,7 @@ async function saveCompanyProfile() {
   }
   const fields = {expMerchant:existing.merchant,expCategory:existing.category,expNet:existing.netAmount,expVatRate:existing.vatTreatment || String(existing.vatRate ?? 0),expPayMethod:existing.payMethod || 'Company Card',expReference:existing.reference || '',expNotes:existing.notes || ''};
   document.querySelectorAll('#expPayMethod option[data-legacy]').forEach(option => option.remove());
-  if (!['Company Card','Bank Transfer'].includes(fields.expPayMethod)) {
+  if (!['Company Card','Bank Transfer','Cash'].includes(fields.expPayMethod)) {
    const option = document.createElement('option'); option.value = fields.expPayMethod; option.textContent = fields.expPayMethod; option.dataset.legacy = 'true';
    document.getElementById('expPayMethod').appendChild(option);
   }
@@ -2916,15 +2916,15 @@ async function removeSelectedBankRows() {
     </nav>
     <script src="js/core/state.js"></script>
     <script src="js/core/storage.js?v=receipt-storage-1"></script>
-    <script src="js/core/ledger.js"></script>
+    <script src="js/core/ledger.js?v=cash-payments-1"></script>
     <script src="js/core/customers.js"></script>
     <script src="js/core/suppliers.js"></script>
     <script src="js/core/payments.js?v=invoice-branding-1"></script>
     <script src="js/core/banking.js?v=bank-workflows-1"></script>
-    <script src="js/core/receipts.js?v=bank-workflows-1"></script>
-    <script src="js/core/bank-entries.js?v=bank-workflows-1"></script>
+    <script src="js/core/receipts.js?v=cash-payments-1"></script>
+    <script src="js/core/bank-entries.js?v=cash-payments-1"></script>
     <script src="js/ui/bank-workflows.js?v=bank-workflows-1"></script>
-    <script src="js/core/reports.js"></script>
+    <script src="js/core/reports.js?v=cash-payments-1"></script>
     <script src="js/ui/reports.js"></script>
     <script src="js/app.js"></script>
 </body>
