@@ -10,7 +10,7 @@
     <link rel="icon" href="assets/evergreen-icon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="css/app.css?v=sidebar-1">
     <!-- Local styles and fonts, available offline -->
-    <link rel="stylesheet" href="assets/vendor/utilities.css?v=bank-workflows-1">
+    <link rel="stylesheet" href="assets/vendor/utilities.css?v=cash-ledger-1">
     <link rel="stylesheet" href="assets/vendor/inter-5.2.5.css">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="assets/vendor/icons-6.4.0.css">
@@ -160,7 +160,8 @@
                     <button id="tabBtn-expenses" onclick="switchTab('expenses')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
                         <i class="fa-solid fa-receipt"></i> Expenses & Receipts
                     </button>
-                    <button id="tabBtn-bank" onclick="switchTab('bank')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
+                    <button id="tabBtn-cash" onclick="switchTab('cash')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2"><i class="fa-solid fa-wallet"></i> Cash on Hand</button>
+<button id="tabBtn-bank" onclick="switchTab('bank')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
                         <i class="fa-solid fa-building-columns"></i> Bank Recon
                     </button>
                     <button id="tabBtn-mtd" onclick="switchTab('mtd')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
@@ -1036,7 +1037,26 @@
                 </div>
             </section>
 
-        </main>
+        <section id="tab-cash" class="tab-content hidden space-y-6">
+<div class="flex flex-wrap items-center justify-between gap-4"><div><h2 class="text-xl font-bold">Cash on Hand &amp; Cash Ledger</h2><p class="text-sm text-slate-500">Business cash, petty cash and all recorded cash payments in one ledger.</p></div><button onclick="exportCashLedger()" class="px-4 py-2 rounded-xl bg-brand-600 text-white">Export CSV</button></div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="bg-white dark:bg-slate-800 rounded-xl border p-5"><p>Cash on hand today</p><strong id="cashCurrent" class="text-2xl text-brand-700"></strong><p id="cashBalanceWarning" class="text-sm text-red-600"></p></div>
+<div class="bg-white dark:bg-slate-800 rounded-xl border p-5"><p>Period money in</p><strong id="cashIn" class="text-2xl"></strong></div>
+<div class="bg-white dark:bg-slate-800 rounded-xl border p-5"><p>Period money out</p><strong id="cashOut" class="text-2xl"></strong></div></div>
+<div class="bg-white dark:bg-slate-800 rounded-xl border p-5 space-y-4"><h3 class="font-bold">Record cash funding or transfer</h3>
+<p class="text-sm text-slate-500">Use opening balance once for cash already held at the start of your records. Bank withdrawals and deposits are transfers, not income or expenses. Choose capital or a loan for personal money introduced.</p>
+<form id="cashMovementForm" onsubmit="saveCashMovement(event)" class="space-y-4">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<label>Movement<select id="cashKind" onchange="updateCashMovementHint()" class="w-full border rounded-xl p-2.5"><option value="withdrawal">Bank withdrawal to cash</option><option value="deposit">Cash deposit to bank</option><option value="opening">Opening cash balance</option><option value="capital">Owner capital introduced</option><option value="loan">Owner / director loan introduced</option></select></label>
+<label>Date<input id="cashDate" type="date" required class="w-full border rounded-xl p-2.5"></label>
+<label>Amount (£)<input id="cashAmount" type="number" min="0.01" step="0.01" required class="w-full border rounded-xl p-2.5"></label></div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4"><label>Reference<input id="cashReference" maxlength="100" class="w-full border rounded-xl p-2.5"></label><label>Notes<input id="cashNotes" maxlength="500" class="w-full border rounded-xl p-2.5"></label></div>
+<p id="cashMovementHint" class="text-sm text-slate-500"></p><button id="cashMovementSave" class="px-4 py-2 rounded-xl bg-brand-600 text-white">Record Cash Movement</button></form>
+<div class="flex flex-wrap gap-3"><button onclick="openExpenseModal();document.getElementById('expPayMethod').value='Cash'" class="px-4 py-2 rounded-xl bg-brand-50 text-brand-700">Log Cash Expense</button><button onclick="openInvoiceModal('Invoice');document.getElementById('invInitialPaymentMethod').value='Cash'" class="px-4 py-2 rounded-xl bg-brand-50 text-brand-700">Create Cash Sale</button><button onclick="switchTab('sales')" class="px-4 py-2 rounded-xl bg-brand-50 text-brand-700">Customer Payments</button></div>
+<p class="text-sm text-slate-500">For a cash sale, enter the payment received in the invoice form. For an existing invoice, record its payment with method Cash. These appear here automatically.</p></div>
+<div class="bg-white dark:bg-slate-800 rounded-xl border p-5 space-y-4"><div class="flex flex-wrap gap-4 items-end"><h3 class="font-bold">Cash Ledger</h3><label>From<input id="cashFrom" type="date" onchange="renderCashLedger()" class="block border rounded-xl p-2"></label><label>To<input id="cashTo" type="date" onchange="renderCashLedger()" class="block border rounded-xl p-2"></label></div><p id="cashPeriodSummary" class="text-sm"></p>
+<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-slate-100 dark:bg-slate-900"><tr><th class="p-3 text-left">Date</th><th class="p-3 text-left">Reference / Type</th><th class="p-3 text-left">Description</th><th class="p-3 text-right">Money In (£)</th><th class="p-3 text-right">Money Out (£)</th><th class="p-3 text-right">Balance (£)</th><th class="p-3 text-left">Action</th></tr></thead><tbody id="cashLedgerRows"></tbody></table></div></div></section>
+</main>
     </div>
 
 <div id="bankRemovalModal" role="dialog" aria-modal="true" aria-labelledby="bankRemovalTitle" class="fixed inset-0 z-50 hidden bg-slate-900/60 p-4 overflow-y-auto">
@@ -1613,13 +1633,14 @@
  target.classList.remove('hidden');
  const button=document.getElementById('tabBtn-'+tabId);
  if(button) {button.classList.add('active-tab');button.setAttribute('aria-current','page');}
- const titles={dashboard:'Dashboard',sales:'Sales & Credit Notes',purchases:'Purchases & Debit Notes',contacts:'Customers & Suppliers',expenses:'Expenses & Receipts',bank:'Bank Reconciliation',mtd:'MTD VAT',tax:'UK Tax & Payroll',reports:'Reports',settingsTab:'Settings & Audit'};
+ const titles={dashboard:'Dashboard',sales:'Sales & Credit Notes',purchases:'Purchases & Debit Notes',contacts:'Customers & Suppliers',expenses:'Expenses & Receipts',cash:'Cash on Hand',bank:'Bank Reconciliation',mtd:'MTD VAT',tax:'UK Tax & Payroll',reports:'Reports',settingsTab:'Settings & Audit'};
  document.getElementById('workspaceSectionTitle').textContent=titles[tabId] || 'Workspace';
  if (tabId==='dashboard') renderDashboard();
  if (tabId==='contacts') renderContacts();
  if (tabId==='settingsTab') renderCompanyProfile();
  if (tabId==='expenses') renderExpensesTable();
  if (tabId==='bank') renderBankTable();
+ if (tabId==='cash') renderCashLedger();
  if (tabId==='reports' && typeof renderReports==='function') renderReports();
  if (tabId==='mtd') renderMtdBoxCalculations();
 }
@@ -2250,6 +2271,7 @@ function removeExpenseReceipt() {
   const existing = editing ? appState.expenses.find(item => item.id === window.editingExpenseId) : null;
   const exp = editing ? EvergreenReceipts.revise(existing,input) : EvergreenReceipts.create(input);
   if (EvergreenReceipts.duplicates(exp,appState.expenses).length && !confirm('Another expense with the same merchant, date and total exists. Save anyway?')) return;
+  if (EvergreenLedger.isCashMethod(exp.payMethod) && EvergreenCash.balanceAt(appState,exp.date,existing?.id)<exp.grossAmount && !confirm('This expense exceeds cash available on its date. Cash will become negative. Record it anyway?')) return;
   const previous = JSON.parse(JSON.stringify(appState));
   try {
    if (window.EvergreenSuppliers) {
@@ -2350,7 +2372,7 @@ async function removeSelectedBankRows() {
   select.onchange=()=>updateBankCategory(tx.id,select.value);category.appendChild(select);
   cell('£'+Number(tx.amount).toFixed(2),'text-right font-mono font-bold '+(tx.amount<0?'text-rose-500':'text-emerald-600'));
   const status=cell(null,'text-center'),badge=document.createElement('span');badge.textContent=tx.status;badge.className='px-2.5 py-1 rounded-full text-xs font-semibold '+bankStatusClass(tx.status);status.appendChild(badge);
-  const linkOnly=['Payment','Expense'].includes(tx.suggestedType);
+  const linkOnly=['Payment','Expense','CashMovement'].includes(tx.suggestedType);
   const matchText=tx.status==='Matched' ? tx.matchedType+' ('+(tx.matchedReference || tx.matchedId)+')' : tx.suggestedId ? (linkOnly?'Recorded ':'')+tx.suggestedType+' '+(tx.suggestedReference || tx.suggestedId)+(linkOnly?' · Review link':' · '+tx.matchScore+'%') : 'No confident match';
   cell(matchText,'text-slate-500 text-xs min-w-44');
   const actions=cell(null,'text-right');const wrap=document.createElement('div');wrap.className='flex flex-wrap justify-end gap-1';actions.appendChild(wrap);
@@ -2900,7 +2922,8 @@ async function removeSelectedBankRows() {
                 <button onclick="closeModal('mobileSectionsModal'); switchTab('expenses'); window.scrollTo({top:0,behavior:'auto'})" class="text-left px-4 py-3 rounded-xl bg-brand-50 dark:bg-brand-900 text-brand-700 dark:text-slate-100 font-semibold">Expenses & Receipts</button>
                 <button onclick="closeModal('mobileSectionsModal'); switchTab('purchases'); window.scrollTo({top:0,behavior:'auto'})" class="text-left px-4 py-3 rounded-xl bg-brand-50 dark:bg-brand-900 text-brand-700 dark:text-slate-100 font-semibold">Purchases</button>
                 <button onclick="closeModal('mobileSectionsModal'); switchTab('contacts'); window.scrollTo({top:0,behavior:'auto'})" class="text-left px-4 py-3 rounded-xl bg-brand-50 dark:bg-brand-900 text-brand-700 dark:text-slate-100 font-semibold">Customers & Suppliers</button>
-                <button onclick="closeModal('mobileSectionsModal'); switchTab('reports'); window.scrollTo({top:0,behavior:'auto'})" class="text-left px-4 py-3 rounded-xl bg-brand-50 dark:bg-brand-900 text-brand-700 dark:text-slate-100 font-semibold">Reports</button>
+                <button onclick="closeModal('mobileSectionsModal'); switchTab('cash')" class="text-left px-4 py-3 rounded-xl bg-brand-50 dark:bg-brand-900 text-brand-700 dark:text-slate-100 font-semibold">Cash on Hand</button>
+<button onclick="closeModal('mobileSectionsModal'); switchTab('reports'); window.scrollTo({top:0,behavior:'auto'})" class="text-left px-4 py-3 rounded-xl bg-brand-50 dark:bg-brand-900 text-brand-700 dark:text-slate-100 font-semibold">Reports</button>
                 <button onclick="closeModal('mobileSectionsModal'); switchTab('mtd'); window.scrollTo({top:0,behavior:'auto'})" class="text-left px-4 py-3 rounded-xl bg-brand-50 dark:bg-brand-900 text-brand-700 dark:text-slate-100 font-semibold">MTD VAT</button>
                 <button onclick="closeModal('mobileSectionsModal'); switchTab('tax'); window.scrollTo({top:0,behavior:'auto'})" class="text-left px-4 py-3 rounded-xl bg-brand-50 dark:bg-brand-900 text-brand-700 dark:text-slate-100 font-semibold">Tax & Payroll</button>
                 <button onclick="closeModal('mobileSectionsModal'); switchTab('settingsTab'); window.scrollTo({top:0,behavior:'auto'})" class="text-left px-4 py-3 rounded-xl bg-brand-50 dark:bg-brand-900 text-brand-700 dark:text-slate-100 font-semibold">Settings & Audit</button>
@@ -2916,16 +2939,18 @@ async function removeSelectedBankRows() {
     </nav>
     <script src="js/core/state.js"></script>
     <script src="js/core/storage.js?v=receipt-storage-1"></script>
-    <script src="js/core/ledger.js?v=cash-payments-1"></script>
+    <script src="js/core/ledger.js?v=cash-ledger-1"></script>
     <script src="js/core/customers.js"></script>
     <script src="js/core/suppliers.js"></script>
     <script src="js/core/payments.js?v=invoice-branding-1"></script>
-    <script src="js/core/banking.js?v=bank-workflows-1"></script>
-    <script src="js/core/receipts.js?v=cash-payments-1"></script>
-    <script src="js/core/bank-entries.js?v=cash-payments-1"></script>
+    <script src="js/core/banking.js?v=cash-ledger-1"></script>
+    <script src="js/core/receipts.js?v=cash-ledger-1"></script>
+    <script src="js/core/bank-entries.js?v=cash-ledger-1"></script>
     <script src="js/ui/bank-workflows.js?v=bank-workflows-1"></script>
-    <script src="js/core/reports.js?v=cash-payments-1"></script>
+    <script src="js/core/reports.js?v=cash-ledger-1"></script>
     <script src="js/ui/reports.js"></script>
+<script src="js/core/cash.js?v=cash-ledger-1"></script>
+<script src="js/ui/cash.js?v=cash-ledger-1"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
