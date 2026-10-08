@@ -23,6 +23,7 @@
     const tx=bankRow(state,txId);
     const amount=money(Math.abs(tx.amount)),candidates=[];
     (state.payments || []).forEach(payment=>{
+      if (window.EvergreenLedger?.isCashMethod(payment.method)) return;
       if (!['Invoice','Bill'].includes(payment.documentType) || (payment.documentType==='Invoice')!==(tx.amount>0) || money(payment.amount)!==amount || linkedElsewhere(state,'Payment',payment,tx)) return;
       const docs=payment.documentType==='Invoice' ? state.invoices : state.bills;
       const doc=(docs || []).find(d=>d.id===payment.documentId && d.type===payment.documentType);
@@ -30,6 +31,7 @@
       candidates.push({type:'Payment',id:payment.id,date:payment.date,amount,reference:doc.invNo || doc.billNo || payment.reference || payment.id,paymentReference:payment.reference || '',party:doc.customer || doc.supplier || '',method:payment.method || '',documentType:payment.documentType,documentId:doc.id});
     });
     if (tx.amount<0) (state.expenses || []).forEach(expense=>{
+      if (window.EvergreenLedger?.isCashMethod(expense.payMethod)) return;
       if (money(expense.grossAmount)!==amount || linkedElsewhere(state,'Expense',expense,tx)) return;
       candidates.push({type:'Expense',id:expense.id,date:expense.date,amount,reference:expense.reference || expense.id,party:expense.merchant || '',method:expense.payMethod || '',documentType:'Expense',documentId:expense.id});
     });

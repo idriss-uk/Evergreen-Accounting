@@ -91,6 +91,7 @@ function revise(existing, input) {
  const expense = create({...existing, ...input, id:existing.id, category:legacyCategory ? 'Other Expenses' : category});
  if (legacyCategory) expense.category = category;
  if (existing.bankTransactionId) {
+  if (window.EvergreenLedger?.isCashMethod(expense.payMethod)) throw Error('A bank-reconciled expense cannot be changed to cash. Unlink its recorded expense in Bank Recon first.');
   const unchanged=money(expense.netAmount)===money(existing.netAmount) && String(expense.vatTreatment)===String(existing.vatTreatment ?? existing.vatRate);
   if(unchanged) {expense.vatAmount=existing.vatAmount;expense.grossAmount=existing.grossAmount;}
   if(money(expense.grossAmount)!==money(existing.grossAmount)) throw Error('This expense is reconciled to a bank row. Keep its gross amount unchanged, or unlink the existing expense in Bank Recon first.');

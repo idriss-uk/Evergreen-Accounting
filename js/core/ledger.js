@@ -3,6 +3,7 @@
 
   const ACCOUNTS = Object.freeze({
     BANK: '1000 Bank',
+    CASH: '1010 Cash / Petty Cash',
     ACCOUNTS_RECEIVABLE: '1100 Accounts Receivable',
     VAT_INPUT: '1200 VAT Input',
     ACCOUNTS_PAYABLE: '2000 Accounts Payable',
@@ -13,6 +14,10 @@
   });
 
   const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
+
+  function isCashMethod(method) {
+    return ['cash','petty cash','cash / petty cash'].includes(String(method || '').trim().toLowerCase());
+  }
 
   function line(account, debit = 0, credit = 0, memo = '') {
     return {
@@ -120,7 +125,7 @@
         lines: [
           line(ACCOUNTS.OPERATING_EXPENSES, net, 0, doc.category || ''),
           line(ACCOUNTS.VAT_INPUT, vat, 0, doc.category || ''),
-          line(ACCOUNTS.BANK, 0, gross, doc.payMethod || '')
+          line(isCashMethod(doc.payMethod) ? ACCOUNTS.CASH : ACCOUNTS.BANK, 0, gross, doc.payMethod || '')
         ]
       });
     }
@@ -131,6 +136,7 @@
   function fromPayment(payment) {
     const amount = roundMoney(payment.amount);
     const incoming = payment.direction === 'incoming';
+    const account = isCashMethod(payment.method) ? ACCOUNTS.CASH : ACCOUNTS.BANK;
 
     return createEntry({
       date: payment.date,
@@ -139,18 +145,19 @@
       description: payment.reference || 'Payment',
       lines: incoming
         ? [
-            line(ACCOUNTS.BANK, amount, 0, payment.reference),
+            line(account, amount, 0, payment.reference),
             line(ACCOUNTS.ACCOUNTS_RECEIVABLE, 0, amount, payment.reference)
           ]
         : [
             line(ACCOUNTS.ACCOUNTS_PAYABLE, amount, 0, payment.reference),
-            line(ACCOUNTS.BANK, 0, amount, payment.reference)
+            line(account, 0, amount, payment.reference)
           ]
     });
   }
 
   window.EvergreenLedger = Object.freeze({
     ACCOUNTS,
+    isCashMethod,
     roundMoney,
     createEntry,
     getTotals,

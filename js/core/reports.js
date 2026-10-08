@@ -265,6 +265,12 @@
       }))
       .sort((a, b) => isoDate(a.date).localeCompare(isoDate(b.date)));
 
+    buildCanonicalLedger(state).filter((entry) => inRange(entry.date, from, to)).forEach((entry) => {
+      const amount = money((entry.lines || []).filter((line) => line.account === window.EvergreenLedger.ACCOUNTS.CASH)
+        .reduce((sum, line) => sum + money(line.debit) - money(line.credit), 0));
+      if (amount) rows.push({date:entry.date, description:`Cash · ${entry.description || ''}`, amount, status:'Recorded Cash'});
+    });
+    rows.sort((a, b) => isoDate(a.date).localeCompare(isoDate(b.date)));
     const inflows = money(rows.filter((tx) => tx.amount > 0).reduce((sum, tx) => sum + tx.amount, 0));
     const outflows = money(Math.abs(rows.filter((tx) => tx.amount < 0).reduce((sum, tx) => sum + tx.amount, 0)));
 
