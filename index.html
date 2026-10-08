@@ -10,7 +10,7 @@
     <link rel="icon" href="assets/evergreen-icon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="css/app.css?v=sidebar-1">
     <!-- Local styles and fonts, available offline -->
-    <link rel="stylesheet" href="assets/vendor/utilities.css?v=offline-assets-1">
+    <link rel="stylesheet" href="assets/vendor/utilities.css?v=bank-workflows-1">
     <link rel="stylesheet" href="assets/vendor/inter-5.2.5.css">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="assets/vendor/icons-6.4.0.css">
@@ -1052,7 +1052,48 @@
   <div class="flex justify-end gap-2"><button type="button" onclick="closeModal('bankRemovalModal')" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700">Cancel</button><button type="button" onclick="removeSelectedBankRows()" class="px-4 py-2 rounded-xl bg-rose-600 text-white font-semibold">Remove Selected Rows</button></div>
  </div>
  </div>
-     <!-- MODAL 1: INVOICE / CREDIT NOTE FORM -->
+     <div id="bankEntryModal" role="dialog" aria-modal="true" aria-labelledby="bankEntryTitle" class="fixed inset-0 z-50 hidden bg-slate-900/60 p-4 overflow-y-auto">
+        <div class="glass-panel bg-white dark:bg-slate-800 rounded-2xl max-w-2xl mx-auto my-4 p-5 space-y-4">
+            <div class="flex items-center justify-between gap-3"><h3 id="bankEntryTitle" class="font-bold text-lg">Record from Bank Row</h3><button type="button" onclick="closeModal('bankEntryModal')" class="p-2">Close</button></div>
+            <p id="bankEntrySummary" class="text-sm text-slate-500"></p>
+            <p class="text-xs text-slate-500">Record a genuine sale or business expense. The bank amount is the gross total; choose VAT from your invoice or receipt. Transfers and refunds need their appropriate existing records.</p>
+            <form id="bankEntryForm" onsubmit="saveBankEntry(event)" class="space-y-3 text-sm">
+                <input id="bankEntryTxId" type="hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label><span id="bankEntryPartyLabel">Customer / Merchant</span><input id="bankEntryParty" required maxlength="200" class="w-full p-2 rounded-xl border border-slate-300 bg-slate-50 dark:bg-slate-900"></label>
+                    <label><span id="bankEntryReferenceLabel">Reference</span><input id="bankEntryReference" maxlength="100" class="w-full p-2 rounded-xl border border-slate-300 bg-slate-50 dark:bg-slate-900"></label>
+                </div>
+                <label class="block">Description<textarea id="bankEntryDescription" required rows="2" maxlength="1000" class="w-full p-2 rounded-xl border border-slate-300 bg-slate-50 dark:bg-slate-900"></textarea></label>
+                <label class="block">VAT rate<select id="bankEntryVat" onchange="updateBankEntryTotals()" class="w-full p-2 rounded-xl border border-slate-300 bg-slate-50 dark:bg-slate-900"><option value="0">No VAT (0%)</option><option value="20">Standard 20%</option><option value="5">Reduced 5%</option><option value="EXEMPT">Exempt</option></select></label>
+                <div class="flex justify-between gap-3 rounded-xl bg-slate-100 dark:bg-slate-900 p-3"><span>Net: <strong id="bankEntryNet">£0.00</strong></span><span>VAT: <strong id="bankEntryVatAmount">£0.00</strong></span></div>
+                <div id="bankEntryExpenseFields" class="space-y-3">
+                    <label class="block">Expense category<select id="bankEntryCategory" class="w-full p-2 rounded-xl border border-slate-300 bg-slate-50 dark:bg-slate-900"></select></label>
+                    <label class="block">Receipt (optional)<input id="bankEntryFile" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" onchange="handleBankEntryReceipt(event)" class="block mt-1 w-full"></label>
+                    <p id="bankEntryFileName" class="text-xs text-slate-500">Receipt optional</p>
+                </div>
+                <div id="bankEntryExistingWarning" class="hidden rounded-xl bg-amber-50 dark:bg-slate-900 p-3 space-y-2">
+                    <p>A similar recorded payment or expense exists.</p>
+                    <button id="bankEntryReviewExisting" type="button" class="text-brand-700 dark:text-brand-300 underline">Review Match Existing</button>
+                    <label class="flex gap-2 items-start"><input id="bankConfirmNewEntry" type="checkbox" class="mt-1"><span>I checked the existing records; this is a separate new sale or expense.</span></label>
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-200"><button type="button" onclick="closeModal('bankEntryModal')" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700">Cancel</button><button id="bankEntrySave" type="submit" class="px-4 py-2 rounded-xl bg-brand-600 text-white font-semibold">Record & Reconcile</button></div>
+            </form>
+        </div>
+    </div>
+    <div id="existingBankMatchModal" role="dialog" aria-modal="true" aria-labelledby="existingBankTitle" class="fixed inset-0 z-50 hidden bg-slate-900/60 p-4 overflow-y-auto">
+        <div class="glass-panel bg-white dark:bg-slate-800 rounded-2xl max-w-2xl mx-auto my-4 p-5 space-y-4">
+            <div class="flex items-center justify-between gap-3"><h3 id="existingBankTitle" class="font-bold text-lg">Match an Existing Recorded Item</h3><button type="button" onclick="closeModal('existingBankMatchModal')" class="p-2">Close</button></div>
+            <p id="existingBankSummary" class="text-sm text-slate-500"></p>
+            <p class="text-sm">This links a payment or expense already recorded in the accounts. Check the reference, date, party and amount before linking.</p>
+            <form id="existingBankMatchForm" onsubmit="saveExistingBankMatch(event)" class="space-y-3 text-sm">
+                <input id="existingBankTxId" type="hidden">
+                <label class="block">Recorded item<select id="existingBankSource" class="w-full p-2 rounded-xl border border-slate-300 bg-slate-50 dark:bg-slate-900"></select></label>
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-200"><button type="button" onclick="closeModal('existingBankMatchModal')" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700">Cancel</button><button id="existingBankSave" type="submit" class="px-4 py-2 rounded-xl bg-brand-600 text-white font-semibold">Link Existing & Reconcile</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 1: INVOICE / CREDIT NOTE FORM -->
     <div id="invoiceModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
         <div class="glass-panel bg-white dark:bg-slate-800 rounded-3xl max-w-3xl w-full p-6 shadow-2xl space-y-4 my-8">
             <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3">
@@ -2290,61 +2331,43 @@ async function removeSelectedBankRows() {
         }
 
         function renderBankTable() {
-            const tbody = document.getElementById('bankTableBody');
-            if (!tbody || !window.EvergreenBanking) return;
-
-            appState.bankTransactions.forEach(tx => {
-                if (tx.status !== 'Matched' && tx.status !== 'Duplicate') {
-                    window.EvergreenBanking.analyseTransaction(appState, tx);
-                }
-            });
-
-            const opening = Number(appState.bankReconciliation?.openingBalance) || 0;
-            const summary = window.EvergreenBanking.reconciliationSummary(appState, opening);
-            document.getElementById('bankOpeningBalance').value = opening.toFixed(2);
-            document.getElementById('bankMovement').innerText = `£${summary.movement.toFixed(2)}`;
-            document.getElementById('bankClosingBalance').innerText = `£${summary.closingBalance.toFixed(2)}`;
-            document.getElementById('bankReconciledBalance').innerText = `£${summary.reconciledBalance.toFixed(2)}`;
-            document.getElementById('bankUnmatchedMovement').innerText = `£${summary.unmatchedMovement.toFixed(2)}`;
-            document.getElementById('bankMatchProgress').innerText = `${summary.matchedCount} / ${summary.matchedCount + summary.unmatchedCount}`;
-            document.getElementById('reconMatchStats').innerText = `${summary.unmatchedCount} To Review · ${summary.duplicateCount} Duplicates Skipped`;
-
-            const categories = ['Sales / Other Income','Bank Fees','Software & IT','Travel & Meals','Rent & Utilities','Advertising & Marketing','Office Supplies','Tax & HMRC','Payroll & Wages','Internal Transfer','Uncategorised Expense'];
-
-            tbody.innerHTML = '';
-            appState.bankTransactions.forEach(tx => {
-                const tr = document.createElement('tr');
-                const matchText = tx.status === 'Matched'
-                    ? `${tx.matchedType} (${tx.matchedId})`
-                    : tx.suggestedId
-                        ? `${tx.suggestedType} ${tx.suggestedReference || tx.suggestedId} · ${tx.matchScore}%`
-                        : 'No confident match';
-                const actions = tx.status === 'Matched'
-                    ? '<span class="text-emerald-600 font-bold"><i class="fa-solid fa-check"></i> Reconciled</span>'
-                    : tx.status === 'Suggested'
-                        ? `<div class="flex justify-end gap-1"><button onclick="acceptBankSuggestion('${tx.id}')" class="px-2.5 py-1 rounded-lg bg-brand-600 text-white font-semibold">Accept</button><button onclick="openManualBankMatch('${tx.id}')" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 font-semibold">Choose</button></div>`
-                        : `<button onclick="openManualBankMatch('${tx.id}')" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 font-semibold">Choose Match</button>`;
-
-                tr.innerHTML = `
-                    <td class="p-4 font-mono whitespace-nowrap">${tx.date}</td>
-                    <td class="p-4 font-medium min-w-52">${tx.description}</td>
-                    <td class="p-4">
-                        <select onchange="updateBankCategory('${tx.id}', this.value)" class="min-w-40 px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                            ${categories.map(category => `<option value="${category}" ${category === tx.category ? 'selected' : ''}>${category}</option>`).join('')}
-                        </select>
-                    </td>
-                    <td class="p-4 text-right font-mono font-bold ${tx.amount < 0 ? 'text-rose-500' : 'text-emerald-600'}">£${Number(tx.amount).toFixed(2)}</td>
-                    <td class="p-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${bankStatusClass(tx.status)}">${tx.status}</span></td>
-                    <td class="p-4 text-slate-500 text-xs min-w-44">${matchText}</td>
-                    <td class="p-4 text-right">${actions}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            if (appState.bankTransactions.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400">No bank transactions imported yet.</td></tr>';
-            }
-        }
+ const tbody=document.getElementById('bankTableBody');if(!tbody || !window.EvergreenBanking)return;
+ appState.bankTransactions.forEach(tx=>{if(tx.status!=='Matched' && tx.status!=='Duplicate') EvergreenBanking.analyseTransaction(appState,tx);});
+ const opening=Number(appState.bankReconciliation?.openingBalance)||0,summary=EvergreenBanking.reconciliationSummary(appState,opening);
+ document.getElementById('bankOpeningBalance').value=opening.toFixed(2);
+ for(const [id,value] of Object.entries({bankMovement:summary.movement,bankClosingBalance:summary.closingBalance,bankReconciledBalance:summary.reconciledBalance,bankUnmatchedMovement:summary.unmatchedMovement}))document.getElementById(id).textContent='£'+value.toFixed(2);
+ document.getElementById('bankMatchProgress').textContent=summary.matchedCount+' / '+(summary.matchedCount+summary.unmatchedCount);
+ document.getElementById('reconMatchStats').textContent=summary.unmatchedCount+' To Review';
+ const categories=['Sales / Other Income','Bank Fees','Software & IT','Travel & Meals','Rent & Utilities','Advertising & Marketing','Office Supplies','Tax & HMRC','Payroll & Wages','Internal Transfer','Uncategorised Expense'];
+ tbody.replaceChildren();
+ appState.bankTransactions.forEach(tx=>{
+  const row=document.createElement('tr');
+  const cell=(text,classes)=>{const td=document.createElement('td');td.className='p-4 '+(classes || '');if(text!==null)td.textContent=text;row.appendChild(td);return td;};
+  cell(tx.date,'font-mono whitespace-nowrap');cell(tx.description,'font-medium min-w-52');
+  const category=cell(null),select=document.createElement('select');select.className='min-w-40 px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700';
+  const choices=categories.includes(tx.category)?categories:[...categories,tx.category || 'Uncategorised Expense'];
+  choices.forEach(name=>{const option=document.createElement('option');option.value=name;option.textContent=name;option.selected=name===tx.category;select.appendChild(option);});
+  select.onchange=()=>updateBankCategory(tx.id,select.value);category.appendChild(select);
+  cell('£'+Number(tx.amount).toFixed(2),'text-right font-mono font-bold '+(tx.amount<0?'text-rose-500':'text-emerald-600'));
+  const status=cell(null,'text-center'),badge=document.createElement('span');badge.textContent=tx.status;badge.className='px-2.5 py-1 rounded-full text-xs font-semibold '+bankStatusClass(tx.status);status.appendChild(badge);
+  const linkOnly=['Payment','Expense'].includes(tx.suggestedType);
+  const matchText=tx.status==='Matched' ? tx.matchedType+' ('+(tx.matchedReference || tx.matchedId)+')' : tx.suggestedId ? (linkOnly?'Recorded ':'')+tx.suggestedType+' '+(tx.suggestedReference || tx.suggestedId)+(linkOnly?' · Review link':' · '+tx.matchScore+'%') : 'No confident match';
+  cell(matchText,'text-slate-500 text-xs min-w-44');
+  const actions=cell(null,'text-right');const wrap=document.createElement('div');wrap.className='flex flex-wrap justify-end gap-1';actions.appendChild(wrap);
+  const button=(name,callback,primary=false)=>{const btn=document.createElement('button');btn.type='button';btn.textContent=name;btn.className='px-2.5 py-1.5 rounded-lg font-semibold text-xs '+(primary?'bg-brand-600 text-white':'bg-slate-100 dark:bg-slate-700');btn.onclick=callback;wrap.appendChild(btn);};
+  if(tx.status==='Matched'){
+   const label=document.createElement('span');label.textContent='✓ Reconciled';label.className='text-emerald-600 font-bold';wrap.appendChild(label);
+   if(tx.matchMode==='existing')button('Unlink',()=>unlinkExistingBankMatch(tx.id));
+  } else if(EvergreenBanking.canRemoveTransaction(appState,tx) && tx.status!=='Duplicate') {
+   if(tx.status==='Suggested' && !linkOnly)button('Accept',()=>acceptBankSuggestion(tx.id),true);
+   if(window.EvergreenBankEntries && EvergreenBankEntries.existingCandidates(appState,tx.id).length)button('Match Existing',()=>openExistingBankMatch(tx.id),linkOnly);
+   button('Choose Match',()=>openManualBankMatch(tx.id));
+   button(tx.amount>0?'Record Sale':'Record Expense',()=>openBankEntry(tx.id));
+  }
+  tbody.appendChild(row);
+ });
+ if(!appState.bankTransactions.length){const row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=7;cell.textContent='No bank transactions imported yet.';cell.className='p-8 text-center text-slate-400';row.appendChild(cell);tbody.appendChild(row);}
+}
 
         async function saveBankOpeningBalance() {
             appState.bankReconciliation = appState.bankReconciliation || {};
@@ -2779,12 +2802,16 @@ async function removeSelectedBankRows() {
         }
 
         async function deleteDoc(type, id) {
+            const documentType=type==='sales'?(appState.invoices.find(doc=>doc.id===id)?.type || 'Invoice'):type==='purchases'?(appState.bills.find(doc=>doc.id===id)?.type || 'Bill'):'Expense';
+            if(window.EvergreenBankEntries?.documentLinked(appState,documentType,id)) {showToast('This document is linked to a bank row. Review or unlink its recorded item in Bank Recon before deleting.','error');return;}
+            const removedPaymentIds=new Set((appState.payments || []).filter(payment=>payment.documentId===id && payment.documentType===documentType).map(payment=>payment.id));
+
             if (type === 'sales') appState.invoices = appState.invoices.filter(i => i.id !== id);
             if (type === 'purchases') appState.bills = appState.bills.filter(b => b.id !== id);
             if (type === 'expenses') appState.expenses = appState.expenses.filter(e => e.id !== id);
 
-            appState.payments = (appState.payments || []).filter(payment => payment.documentId !== id);
-            appState.ledgerEntries = (appState.ledgerEntries || []).filter(entry => entry.sourceId !== id);
+            appState.payments = (appState.payments || []).filter(payment => payment.documentId !== id || payment.documentType !== documentType);
+            appState.ledgerEntries = (appState.ledgerEntries || []).filter(entry => !(entry.sourceId === id && entry.sourceType===documentType) && !(entry.sourceType==='Payment' && removedPaymentIds.has(entry.sourceId)));
 
             await saveState();
             renderSalesTable();
@@ -2893,8 +2920,10 @@ async function removeSelectedBankRows() {
     <script src="js/core/customers.js"></script>
     <script src="js/core/suppliers.js"></script>
     <script src="js/core/payments.js?v=invoice-branding-1"></script>
-    <script src="js/core/banking.js?v=bank-row-removal-1"></script>
-    <script src="js/core/receipts.js?v=receipt-storage-1"></script>
+    <script src="js/core/banking.js?v=bank-workflows-1"></script>
+    <script src="js/core/receipts.js?v=bank-workflows-1"></script>
+    <script src="js/core/bank-entries.js?v=bank-workflows-1"></script>
+    <script src="js/ui/bank-workflows.js?v=bank-workflows-1"></script>
     <script src="js/core/reports.js"></script>
     <script src="js/ui/reports.js"></script>
     <script src="js/app.js"></script>

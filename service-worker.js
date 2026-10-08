@@ -1,10 +1,10 @@
-const CACHE_NAME = 'evergreen-v5-shell-v18';
+const CACHE_NAME = 'evergreen-v5-shell-v19';
 const APP_SHELL = [
   './',
   './index.html',
   './css/app.css?v=sidebar-1',
   './js/app.js',
-  './assets/vendor/utilities.css?v=offline-assets-1',
+  './assets/vendor/utilities.css?v=bank-workflows-1',
   './assets/vendor/inter-5.2.5.css',
   './assets/vendor/icons-6.4.0.css',
   './assets/vendor/chart-4.4.8.umd.js',
@@ -14,8 +14,10 @@ const APP_SHELL = [
   './js/core/customers.js',
   './js/core/suppliers.js',
   './js/core/payments.js?v=invoice-branding-1',
-  './js/core/banking.js?v=bank-row-removal-1',
-  './js/core/receipts.js?v=receipt-storage-1',
+  './js/core/banking.js?v=bank-workflows-1',
+  './js/core/receipts.js?v=bank-workflows-1',
+  './js/core/bank-entries.js?v=bank-workflows-1',
+  './js/ui/bank-workflows.js?v=bank-workflows-1',
   './js/core/reports.js',
   './js/ui/reports.js',
   './manifest.json',
