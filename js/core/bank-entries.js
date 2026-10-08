@@ -35,6 +35,11 @@
       if (money(expense.grossAmount)!==amount || linkedElsewhere(state,'Expense',expense,tx)) return;
       candidates.push({type:'Expense',id:expense.id,date:expense.date,amount,reference:expense.reference || expense.id,party:expense.merchant || '',method:expense.payMethod || '',documentType:'Expense',documentId:expense.id});
     });
+    (state.ledgerEntries || []).filter(entry=>entry.sourceType==='CashMovement' && !entry.reversedBy && !entry.cashReversalOf && ['withdrawal','deposit'].includes(entry.cashKind)).forEach(entry=>{
+      const bankAmount=money((entry.lines || []).filter(line=>line.account===window.EvergreenLedger.ACCOUNTS.BANK).reduce((sum,line)=>sum+Number(line.debit || 0)-Number(line.credit || 0),0));
+      if(bankAmount!==money(tx.amount) || linkedElsewhere(state,'CashMovement',entry,tx))return;
+      candidates.push({type:'CashMovement',id:entry.id,date:entry.date,amount,reference:entry.cashReference || entry.sourceId,party:entry.description,method:'Cash transfer',documentType:'CashMovement',documentId:entry.id});
+    });
     return candidates;
   }
   function plausibleExisting(state,txId) {
@@ -52,7 +57,7 @@
     const tx=bankRow(state,txId);
     const candidate=existingCandidates(state,txId).find(item=>item.type===type && item.id===id);
     if (!candidate) throw Error('This record is unavailable, already reconciled, or has a different amount or payment direction.');
-    const source=(type==='Payment' ? state.payments : state.expenses).find(item=>item.id===id);
+    const source=(type==='Payment' ? state.payments : type==='CashMovement' ? state.ledgerEntries : state.expenses).find(item=>item.id===id);
     source.bankTransactionId=tx.id;
     markMatched(tx,type,id,candidate.reference,'existing');
     if (type==='Payment') tx.matchedPaymentId=id;
@@ -61,9 +66,9 @@
   }
   function unlinkExisting(state,txId) {
     const tx=bankRow(state,txId,false);
-    if (tx.status!=='Matched' || tx.matchMode!=='existing' || !['Payment','Expense'].includes(tx.matchedType)) throw Error('Only links to already-recorded items can be removed here.');
+    if (tx.status!=='Matched' || tx.matchMode!=='existing' || !['Payment','Expense','CashMovement'].includes(tx.matchedType)) throw Error('Only links to already-recorded items can be removed here.');
     const type=tx.matchedType,id=tx.matchedId;
-    const source=((type==='Payment' ? state.payments : state.expenses) || []).find(item=>item.id===id);
+    const source=((type==='Payment' ? state.payments : type==='CashMovement' ? state.ledgerEntries : state.expenses) || []).find(item=>item.id===id);
     if (!source || source.bankTransactionId!==tx.id) throw Error('The linked record changed. Review the reconciliation before continuing.');
     delete source.bankTransactionId;
     for (const field of ['matchedType','matchedId','matchedReference','matchedPaymentId','matchedAmount','matchedAt','matchMode','suggestedType','suggestedId','suggestedReference','suggestedParty']) delete tx[field];

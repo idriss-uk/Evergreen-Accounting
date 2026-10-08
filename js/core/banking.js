@@ -369,7 +369,7 @@
   function acceptSuggestion(state, txId) {
     const tx = (state.bankTransactions || []).find((item) => item.id === txId);
     if (!tx || !tx.suggestedType || !tx.suggestedId) throw new Error('No suggested match is available');
-    if (['Payment','Expense'].includes(tx.suggestedType)) {
+    if (['Payment','Expense','CashMovement'].includes(tx.suggestedType)) {
       if(!window.EvergreenBankEntries) throw Error('Bank update is loading. Refresh Evergreen.');
       return window.EvergreenBankEntries.linkExisting(state,tx.id,tx.suggestedType,tx.suggestedId).transaction;
     }

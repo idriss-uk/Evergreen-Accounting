@@ -256,7 +256,7 @@
 
   function cashFlow(state, { from = '', to = '' } = {}) {
     const rows = (state.bankTransactions || [])
-      .filter((tx) => inRange(tx.date, from, to))
+      .filter((tx) => inRange(tx.date, from, to) && tx.matchedType !== 'CashMovement')
       .map((tx) => ({
         date: tx.date,
         description: tx.description || '',
@@ -266,6 +266,7 @@
       .sort((a, b) => isoDate(a.date).localeCompare(isoDate(b.date)));
 
     buildCanonicalLedger(state).filter((entry) => inRange(entry.date, from, to)).forEach((entry) => {
+      if (entry.sourceType==='CashMovement' && ['opening','withdrawal','deposit'].includes(entry.cashKind)) return;
       const amount = money((entry.lines || []).filter((line) => line.account === window.EvergreenLedger.ACCOUNTS.CASH)
         .reduce((sum, line) => sum + money(line.debit) - money(line.credit), 0));
       if (amount) rows.push({date:entry.date, description:`Cash · ${entry.description || ''}`, amount, status:'Recorded Cash'});
