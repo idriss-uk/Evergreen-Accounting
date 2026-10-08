@@ -217,6 +217,11 @@
 
   function findBestMatch(state, tx) {
     const candidates = [];
+    const existing=window.EvergreenBankEntries?.plausibleExisting(state,tx) || [];
+    if(existing.length) {
+      const source=existing[0];
+      return {type:source.type,id:source.id,reference:source.reference,party:source.party,outstanding:source.amount,score:84,linkOnly:true};
+    }
 
     (state.invoices || []).filter((doc) => doc.type === 'Invoice').forEach((doc) => {
       const candidate = candidateScore(state, tx, 'Invoice', doc);
@@ -316,7 +321,7 @@
     if (amount <= 0) throw new Error('Document has no outstanding balance');
 
     if (window.EvergreenPayments) {
-      window.EvergreenPayments.recordPayment(state, {
+      const recorded=window.EvergreenPayments.recordPayment(state, {
         documentType: type,
         documentId: id,
         amount,
@@ -324,6 +329,8 @@
         method: 'Bank Reconciliation',
         reference: tx.description
       });
+      recorded.payment.bankTransactionId=tx.id;
+      tx.matchedPaymentId=recorded.payment.id;
     } else {
       doc.status = amount >= outstanding ? 'Paid' : 'Part Paid';
     }
@@ -348,7 +355,7 @@
       if (tx.status === 'Matched' || tx.status === 'Duplicate') return;
       analyseTransaction(state, tx);
 
-      if (tx.matchScore >= 85 && tx.suggestedType && tx.suggestedId) {
+      if (tx.matchScore >= 85 && ['Invoice','Bill'].includes(tx.suggestedType) && tx.suggestedId) {
         applyMatch(state, tx, tx.suggestedType, tx.suggestedId);
         matched++;
       } else if (tx.status === 'Suggested') {
@@ -362,6 +369,10 @@
   function acceptSuggestion(state, txId) {
     const tx = (state.bankTransactions || []).find((item) => item.id === txId);
     if (!tx || !tx.suggestedType || !tx.suggestedId) throw new Error('No suggested match is available');
+    if (['Payment','Expense'].includes(tx.suggestedType)) {
+      if(!window.EvergreenBankEntries) throw Error('Bank update is loading. Refresh Evergreen.');
+      return window.EvergreenBankEntries.linkExisting(state,tx.id,tx.suggestedType,tx.suggestedId).transaction;
+    }
     return applyMatch(state, tx, tx.suggestedType, tx.suggestedId);
   }
 
@@ -411,7 +422,7 @@
 
   function canRemoveTransaction(state,tx) {
     return Boolean(tx) && tx.status!=='Matched' && !tx.matchedId && !tx.matchedType && !tx.matchedAt && !(Number(tx.matchedAmount)>0) &&
-      !(state.payments || []).some(payment=>payment.bankTransactionId===tx.id);
+      !(state.payments || []).some(payment=>payment.bankTransactionId===tx.id) && !(state.expenses || []).some(expense=>expense.bankTransactionId===tx.id);
   }
   function removeTransactions(state,ids) {
     const selected=new Set(ids || []);

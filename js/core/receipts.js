@@ -90,6 +90,12 @@ function revise(existing, input) {
  const legacyCategory = category === existing.category && !categories.includes(category);
  const expense = create({...existing, ...input, id:existing.id, category:legacyCategory ? 'Other Expenses' : category});
  if (legacyCategory) expense.category = category;
+ if (existing.bankTransactionId) {
+  const unchanged=money(expense.netAmount)===money(existing.netAmount) && String(expense.vatTreatment)===String(existing.vatTreatment ?? existing.vatRate);
+  if(unchanged) {expense.vatAmount=existing.vatAmount;expense.grossAmount=existing.grossAmount;}
+  if(money(expense.grossAmount)!==money(existing.grossAmount)) throw Error('This expense is reconciled to a bank row. Keep its gross amount unchanged, or unlink the existing expense in Bank Recon first.');
+ }
+
  expense.createdAt = existing.createdAt || null;
  expense.updatedAt = new Date().toISOString();
  expense.supplierId = null;
