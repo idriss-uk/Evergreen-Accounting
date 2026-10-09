@@ -560,15 +560,38 @@
             <section id="tab-expenses" class="tab-content hidden space-y-6">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Expenses & Receipt Attachments</h2>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">Record operational expenses, upload bill attachments (PNG, JPG, PDF Data URLs), and claim input VAT.</p>
+                        <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Expenses & Receipt Automation</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Capture receipts from mobile camera or file upload, track receipt coverage, categorise expenses, and keep OCR-ready metadata for future extraction.</p>
                     </div>
                     <button onclick="openExpenseModal()" class="px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5 shadow-sm shadow-emerald-500/30">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> Log Expense & Attach Receipt
+                        <i class="fa-solid fa-camera-retro"></i> Add Expense / Receipt
                     </button>
                 </div>
 
-                <!-- Expenses Table -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div class="glass-panel p-4 rounded-2xl"><div class="text-[10px] uppercase text-slate-400 font-semibold">Gross Spend</div><div id="expenseTotalSpend" class="text-lg font-bold mt-1">£0.00</div></div>
+                    <div class="glass-panel p-4 rounded-2xl"><div class="text-[10px] uppercase text-slate-400 font-semibold">Receipt Coverage</div><div id="expenseReceiptCoverage" class="text-lg font-bold mt-1 text-emerald-600">0%</div></div>
+                    <div class="glass-panel p-4 rounded-2xl"><div class="text-[10px] uppercase text-slate-400 font-semibold">Missing Receipts</div><div id="expenseMissingReceipts" class="text-lg font-bold mt-1 text-amber-600">0</div></div>
+                    <div class="glass-panel p-4 rounded-2xl"><div class="text-[10px] uppercase text-slate-400 font-semibold">Legacy Receipt Metadata</div><div id="expenseLegacyReceipts" class="text-lg font-bold mt-1">0</div></div>
+                </div>
+
+                <div class="glass-panel p-4 rounded-2xl flex flex-col lg:flex-row gap-3 lg:items-center">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input id="expenseSearchInput" oninput="filterExpensesTable()" type="search" placeholder="Search merchant, category, reference or notes…" class="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    </div>
+                    <select id="expenseCategoryFilter" onchange="filterExpensesTable()" class="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <option value="ALL">All categories</option>
+                    </select>
+                    <select id="expenseReceiptFilter" onchange="filterExpensesTable()" class="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <option value="ALL">All receipt states</option>
+                        <option value="WITH">With receipt</option>
+                        <option value="MISSING">Missing receipt</option>
+                        <option value="LEGACY">Legacy receipt metadata</option>
+                        <option value="READY">OCR-ready metadata</option>
+                    </select>
+                </div>
+
                 <div class="glass-panel rounded-2xl shadow-sm overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs">
@@ -579,16 +602,13 @@
                                     <th class="p-4">Category</th>
                                     <th class="p-4">Payment Method</th>
                                     <th class="p-4 text-right">Net (£)</th>
-                                    <th class="p-4 text-right">VAT Rate</th>
-                                    <th class="p-4 text-right">VAT (£)</th>
+                                    <th class="p-4 text-right">VAT</th>
                                     <th class="p-4 text-right">Gross (£)</th>
-                                    <th class="p-4 text-center">Receipt File</th>
+                                    <th class="p-4 text-center">Receipt</th>
                                     <th class="p-4 text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="expensesTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
-                                <!-- Dynamic JS content -->
-                            </tbody>
+                            <tbody id="expensesTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
                         </table>
                     </div>
                 </div>
@@ -1249,8 +1269,18 @@
                             <option value="Office Supplies">Office Supplies</option>
                             <option value="Rent & Utilities">Rent & Utilities</option>
                             <option value="Travel & Meals">Travel & Meals</option>
+                            <option value="Motor & Fuel">Motor & Fuel</option>
+                            <option value="Telephone & Internet">Telephone & Internet</option>
                             <option value="Legal & Professional">Legal & Professional</option>
-                            <option value="Advertising & Marketing">Advertising & Marketing</option><option>Bank Fees</option><option>Insurance</option><option>Repairs &amp; Maintenance</option><option>Other Expenses</option>
+                            <option value="Accountancy & Bookkeeping">Accountancy & Bookkeeping</option>
+                            <option value="Advertising & Marketing">Advertising & Marketing</option>
+                            <option value="Bank Fees">Bank Fees</option>
+                            <option value="Insurance">Insurance</option>
+                            <option value="Repairs & Maintenance">Repairs & Maintenance</option>
+                            <option value="Postage & Courier">Postage & Courier</option>
+                            <option value="Training & Education">Training & Education</option>
+                            <option value="Subscriptions">Subscriptions</option>
+                            <option value="Other Expenses">Other Expenses</option>
                         </select>
                     </div>
                 </div>
@@ -1602,6 +1632,10 @@
  stateSaveQueue=result.catch(()=>{});
  return result;
 }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+        }
 
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer');
@@ -2161,30 +2195,77 @@ async function saveCompanyProfile() {
 
         function renderExpensesTable() {
             const tbody = document.getElementById('expensesTableBody');
-            tbody.innerHTML = '';
+            if (!tbody || !window.EvergreenReceipts) return;
             const escapeText = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+            const stats = EvergreenReceipts.stats(appState.expenses || []);
 
+            document.getElementById('expenseTotalSpend').textContent = '£' + stats.totalSpend.toFixed(2);
+            document.getElementById('expenseReceiptCoverage').textContent = stats.coveragePercent + '%';
+            document.getElementById('expenseMissingReceipts').textContent = stats.missingReceipt;
+            document.getElementById('expenseLegacyReceipts').textContent = stats.legacyReceipt;
+
+            const categoryFilter = document.getElementById('expenseCategoryFilter');
+            if (categoryFilter && categoryFilter.options.length <= 1) {
+                EvergreenReceipts.categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    categoryFilter.appendChild(option);
+                });
+            }
+
+            tbody.innerHTML = '';
             appState.expenses.forEach(exp => {
+                const receiptState = !exp.attachment ? 'MISSING' : exp.receipt ? 'READY' : 'LEGACY';
                 const tr = document.createElement('tr');
+                tr.dataset.search = [exp.merchant,exp.category,exp.reference,exp.notes,exp.fileName].filter(Boolean).join(' ').toLowerCase();
+                tr.dataset.category = exp.category || '';
+                tr.dataset.receipt = receiptState;
+
+                const receiptBadge = !exp.attachment
+                    ? '<span class="text-amber-600 font-semibold">Missing</span>'
+                    : exp.receipt
+                        ? '<span class="text-emerald-600 font-semibold">Ready</span>'
+                        : '<span class="text-slate-500 font-semibold">Legacy</span>';
+
                 tr.innerHTML = `
                     <td class="p-4 font-mono">${escapeText(exp.date)}</td>
-                    <td class="p-4 font-semibold text-slate-800 dark:text-slate-200">${escapeText(exp.merchant)}</td>
+                    <td class="p-4"><div class="font-semibold text-slate-800 dark:text-slate-200">${escapeText(exp.merchant)}</div><div class="text-[10px] text-slate-400">${escapeText(exp.reference || '')}</div></td>
                     <td class="p-4"><span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium">${escapeText(exp.category)}</span></td>
                     <td class="p-4 text-slate-500">${escapeText(exp.payMethod || 'Company Card')}</td>
-                    <td class="p-4 text-right font-mono">£${exp.netAmount.toFixed(2)}</td>
-                    <td class="p-4 text-right font-mono">${exp.vatRate}%</td>
-                    <td class="p-4 text-right font-mono text-emerald-600 dark:text-emerald-400">£${exp.vatAmount.toFixed(2)}</td>
-                    <td class="p-4 text-right font-mono font-bold">£${exp.grossAmount.toFixed(2)}</td>
+                    <td class="p-4 text-right font-mono">£${Number(exp.netAmount).toFixed(2)}</td>
+                    <td class="p-4 text-right font-mono">${exp.vatTreatment === 'EXEMPT' ? 'Exempt' : Number(exp.vatRate || 0) + '%'}<div class="text-[10px] text-emerald-600">£${Number(exp.vatAmount || 0).toFixed(2)}</div></td>
+                    <td class="p-4 text-right font-mono font-bold">£${Number(exp.grossAmount).toFixed(2)}</td>
                     <td class="p-4 text-center">
-                        ${exp.attachment ? `<button onclick="viewReceipt('${exp.id}')" class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-semibold text-[10px] hover:underline flex items-center gap-1 mx-auto"><i class="fa-solid fa-paperclip"></i> View Receipt</button>` : `<span class="text-slate-400">None</span>`}
+                        <div class="mb-1">${receiptBadge}</div>
+                        ${exp.attachment ? `<button onclick="viewReceipt('${exp.id}')" class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-semibold text-[10px]"><i class="fa-solid fa-paperclip"></i> View</button>` : ''}
                     </td>
-                    <td class="p-4 text-right">
+                    <td class="p-4 text-right whitespace-nowrap">
                         <button type="button" class="px-3 py-2 text-brand-700 dark:text-brand-300 font-semibold" data-edit-expense>Edit</button>
-                        <button onclick="deleteDoc('expenses', '${exp.id}')" class="p-1.5 text-slate-500 hover:text-rose-600"><i class="fa-solid fa-trash text-sm"></i></button>
+                        <button onclick="deleteDoc('expenses', '${exp.id}')" class="p-1.5 text-slate-500 hover:text-rose-600" aria-label="Delete expense"><i class="fa-solid fa-trash text-sm"></i></button>
                     </td>
                 `;
                 tr.querySelector('[data-edit-expense]').onclick = () => openExpenseModal(exp.id);
                 tbody.appendChild(tr);
+            });
+
+            if (!appState.expenses.length) {
+                tbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-slate-400">No expenses recorded yet.</td></tr>';
+            }
+            filterExpensesTable();
+        }
+
+        function filterExpensesTable() {
+            const query = (document.getElementById('expenseSearchInput')?.value || '').trim().toLowerCase();
+            const category = document.getElementById('expenseCategoryFilter')?.value || 'ALL';
+            const receipt = document.getElementById('expenseReceiptFilter')?.value || 'ALL';
+            document.querySelectorAll('#expensesTableBody tr[data-search]').forEach(row => {
+                const matchesQuery = !query || row.dataset.search.includes(query);
+                const matchesCategory = category === 'ALL' || row.dataset.category === category;
+                const matchesReceipt = receipt === 'ALL'
+                    || (receipt === 'WITH' && row.dataset.receipt !== 'MISSING')
+                    || row.dataset.receipt === receipt;
+                row.style.display = matchesQuery && matchesCategory && matchesReceipt ? '' : 'none';
             });
         }
 
@@ -2238,8 +2319,10 @@ function removeExpenseReceipt() {
   const data = prepared.data;
   if (version !== window.expUploadVersion) return;
   pendingExpenseFileBase64 = data; pendingExpenseFileName = prepared.metadata.fileName;
-  window.expReceipt = {...prepared.metadata,schemaVersion:1,capturedAt:new Date().toISOString(),source:e.target.id === 'expCameraInput' ? 'camera' : 'upload',extraction:{status:'not_available',reviewRequired:true}};
-  document.getElementById('expFileName').textContent = prepared.metadata.fileName + ' · ' + Math.ceil(prepared.metadata.sizeBytes / 1024) + ' KB · ' + (prepared.metadata.resized ? 'Resized and ready' : 'Ready');
+  window.expReceipt = {...prepared.metadata,schemaVersion:2,capturedAt:new Date().toISOString(),source:e.target.id === 'expCameraInput' ? 'camera' : 'upload',extraction:{status:'not_connected',reviewRequired:true}};
+  const duplicateReceipt = EvergreenReceipts.receiptDuplicates({id:window.editingExpenseId,receipt:window.expReceipt},appState.expenses || []);
+  document.getElementById('expFileName').textContent = prepared.metadata.fileName + ' · ' + Math.ceil(prepared.metadata.sizeBytes / 1024) + ' KB · ' + (prepared.metadata.resized ? 'Resized · ' : '') + (prepared.metadata.ocrReady ? 'OCR-ready metadata' : 'Ready');
+  if (duplicateReceipt.length) showToast('This receipt file already appears on another expense. Review before saving.','error');
  } catch(error) {
   if (version === window.expUploadVersion) {pendingExpenseFileBase64 = previousReceipt.data; pendingExpenseFileName = previousReceipt.name; window.expReceipt = previousReceipt.metadata; document.getElementById('expFileName').textContent = error.message + (previousReceipt.data ? ' Existing receipt kept.' : ''); showToast(error.message,'error');}
  } finally {if (version === window.expUploadVersion) window.expUploading = false;}
@@ -2271,6 +2354,7 @@ function removeExpenseReceipt() {
   const existing = editing ? appState.expenses.find(item => item.id === window.editingExpenseId) : null;
   const exp = editing ? EvergreenReceipts.revise(existing,input) : EvergreenReceipts.create(input);
   if (EvergreenReceipts.duplicates(exp,appState.expenses).length && !confirm('Another expense with the same merchant, date and total exists. Save anyway?')) return;
+  if (EvergreenReceipts.receiptDuplicates(exp,appState.expenses).length && !confirm('This exact receipt file is already attached to another expense. Save it again anyway?')) return;
   if (EvergreenLedger.isCashMethod(exp.payMethod) && EvergreenCash.balanceAt(appState,exp.date,existing?.id)<exp.grossAmount && !confirm('This expense exceeds cash available on its date. Cash will become negative. Record it anyway?')) return;
   const previous = JSON.parse(JSON.stringify(appState));
   try {
@@ -2292,8 +2376,8 @@ function suggestExpenseCategory() {
  const hint = document.getElementById('expCategoryHint'); hint.replaceChildren();
  if (!suggestion) return;
  const button = document.createElement('button'); button.type = 'button'; button.className = 'text-brand-600 underline';
- button.textContent = 'Use ' + suggestion.category + ' (' + suggestion.reason + ')';
- button.onclick = () => {document.getElementById('expCategory').value = suggestion.category; hint.textContent = 'Suggestion applied. Review before saving.';};
+ button.textContent = 'Use ' + suggestion.category + ' · ' + suggestion.confidence + '% confidence (' + suggestion.reason + ')';
+ button.onclick = () => {document.getElementById('expCategory').value = suggestion.category; hint.textContent = 'Category suggestion applied. Review it before saving.';};
  hint.appendChild(button);
 }
 
@@ -2307,7 +2391,16 @@ function suggestExpenseCategory() {
  } else if (/^data:image\/(jpeg|png|webp);base64,/.test(exp.attachment) || /^https:\/\//.test(exp.attachment)) {
   const img = document.createElement('img'); img.src = exp.attachment; img.alt = 'Receipt'; img.className = 'max-h-[50vh] rounded-xl object-contain'; container.appendChild(img);
  } else {container.textContent = 'Unsupported legacy receipt format.';}
- if (exp.receipt) {const info = document.createElement('p'); info.textContent = exp.receipt.fileName + ' · ' + exp.receipt.source + ' · ' + exp.receipt.capturedAt + ' · Extraction unavailable'; container.appendChild(info);}
+ if (exp.receipt) {
+  const info = document.createElement('div'); info.className='text-xs text-slate-500 space-y-1';
+  const size = exp.receipt.sizeBytes ? Math.ceil(exp.receipt.sizeBytes/1024) + ' KB' : 'Size unavailable';
+  const hash = exp.receipt.sha256 ? exp.receipt.sha256.slice(0,12) + '…' : 'Legacy / no hash';
+  info.innerHTML = '<p><strong>File:</strong> ' + escapeHtml(exp.receipt.fileName || exp.fileName || 'Receipt') + '</p>'
+   + '<p><strong>Source:</strong> ' + escapeHtml(exp.receipt.source || 'upload') + ' · <strong>Size:</strong> ' + size + '</p>'
+   + '<p><strong>Receipt fingerprint:</strong> ' + hash + '</p>'
+   + '<p><strong>Extraction:</strong> Prepared for OCR/AI connector; automatic extraction is not connected yet.</p>';
+  container.appendChild(info);
+ }
  document.getElementById('receiptViewerModal').classList.remove('hidden');
 }
 
