@@ -1727,6 +1727,7 @@
         }
 
         function closeModal(modalId) {
+            if (modalId === 'expenseModal' && window.EvergreenOcrUI) EvergreenOcrUI.reset();
             document.getElementById(modalId).classList.add('hidden');
         }
 
@@ -2313,6 +2314,7 @@ async function saveCompanyProfile() {
         }
 
         function openExpenseModal(expenseId = null) {
+ if (window.EvergreenOcrUI) EvergreenOcrUI.reset();
  const existing = expenseId ? appState.expenses.find(item => item.id === expenseId) : null;
  if (expenseId && !existing) {showToast('Expense no longer exists.','error'); return;}
  window.editingExpenseId = existing ? existing.id : null;
@@ -2343,6 +2345,7 @@ async function saveCompanyProfile() {
  document.getElementById('expenseForm').scrollTop = 0;
 }
 function removeExpenseReceipt() {
+ if (window.EvergreenOcrUI) EvergreenOcrUI.receiptChanged();
  window.expUploadVersion = (window.expUploadVersion || 0) + 1;
  window.expUploading = false; window.expReceipt = null;
  pendingExpenseFileBase64 = null; pendingExpenseFileName = null;
@@ -2352,6 +2355,7 @@ function removeExpenseReceipt() {
 
         async function handleExpenseFileSelected(e) {
  const file = e.target.files[0]; if (!file) return;
+ if (window.EvergreenOcrUI) EvergreenOcrUI.receiptChanged();
  const version = window.expUploadVersion = (window.expUploadVersion || 0) + 1;
  const previousReceipt = {data:pendingExpenseFileBase64,name:pendingExpenseFileName,metadata:window.expReceipt};
  try {
@@ -2386,6 +2390,8 @@ function removeExpenseReceipt() {
  try {
   if (typeof window.EvergreenReceipts?.applyExpense !== 'function' || typeof window.EvergreenReceipts?.revise !== 'function') throw Error('An app update is still loading. Close and reopen Evergreen, then refresh. Your saved records are unchanged.');
   if (window.expUploading) throw Error('Wait for the receipt to finish loading.');
+  if (window.expOcrBusy) throw Error('Wait for the OCR scan to finish before saving.');
+  if (window.expOcrPending && !window.expOcrApplied) throw Error('Review and apply OCR suggestions, or discard them, before saving.');
   const input = {
    merchant:document.getElementById('expMerchant').value,category:document.getElementById('expCategory').value,
    date:document.getElementById('expDate').value,netAmount:document.getElementById('expNet').value,
