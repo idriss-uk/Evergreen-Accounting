@@ -2447,7 +2447,7 @@ function suggestExpenseCategory() {
   info.innerHTML = '<p><strong>File:</strong> ' + escapeHtml(exp.receipt.fileName || exp.fileName || 'Receipt') + '</p>'
    + '<p><strong>Source:</strong> ' + escapeHtml(exp.receipt.source || 'upload') + ' · <strong>Size:</strong> ' + size + '</p>'
    + '<p><strong>Receipt fingerprint:</strong> ' + hash + '</p>'
-   + '<p><strong>Extraction:</strong> Prepared for OCR/AI connector; automatic extraction is not connected yet.</p>';
+   + '<p><strong>OCR review:</strong> ' + escapeHtml(exp.receipt.extraction?.status === 'reviewed' ? 'Reviewed and confirmed by user' : 'Not reviewed') + '</p>';
   container.appendChild(info);
  }
  document.getElementById('receiptViewerModal').classList.remove('hidden');
