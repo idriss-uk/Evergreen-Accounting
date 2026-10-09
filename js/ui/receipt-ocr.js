@@ -140,7 +140,8 @@
 
   function apply() {
     if(!pendingReview || pendingReview.uploadVersion!==window.expUploadVersion ||
-       pendingExpenseFileBase64!==el('ocrReceiptImage')?.src) {
+       !pendingExpenseFileBase64 ||
+       (pendingReview.receiptHash && window.expReceipt?.sha256!==pendingReview.receiptHash)) {
       status('Receipt changed. Scan again before applying suggestions.',true);
       return;
     }
@@ -173,6 +174,17 @@
     if(typeof suggestExpenseCategory==='function') suggestExpenseCategory();
 
     // Preserve a small review audit record. Raw OCR text is never stored.
+    // Historical attachments can predate receipt metadata.
+    if(!window.expReceipt) {
+      window.expReceipt={
+        schemaVersion:2,
+        source:'legacy',
+        fileName:typeof pendingExpenseFileName==='string'?pendingExpenseFileName:'Older receipt image',
+        mimeType:(pendingExpenseFileBase64.match(/^data:([^;]+);/)||[])[1]||'image/jpeg',
+        ocrReady:true,
+        capturedAt:null
+      };
+    }
     if(window.expReceipt) {
       window.expReceipt.extraction={
         status:'reviewed',
