@@ -131,8 +131,12 @@
       const ratio=100*vat/net;
       if(Math.abs(ratio-20)<0.6) vatRate='20';
       if(Math.abs(ratio-5)<0.6) vatRate='5';
-      if(vat===0) vatRate='0';
-      if(vatRate===null) warnings.push('VAT does not match a standard 0%, 5%, or 20% treatment. Review manually.');
+      if(vat===0) {
+        vatRate=null;
+        warnings.push('VAT is zero. Choose zero-rated or exempt treatment manually after checking the receipt.');
+      } else if(vatRate===null) {
+        warnings.push('VAT does not match a standard 5% or 20% treatment. Review manually.');
+      }
     }
     // OCR confidence reflects text recognition, not correctness of financial fields.
     return {
