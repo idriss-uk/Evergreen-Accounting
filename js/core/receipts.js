@@ -326,6 +326,7 @@ window.EvergreenReceipts = Object.freeze({
  validateFile,
  extractionRequest,
  stats,
- extractionAvailable:false
+ extractionAvailable:true,
+ extractionMode:'local-image-ocr'
 });
 })();
