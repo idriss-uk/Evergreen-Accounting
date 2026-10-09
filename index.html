@@ -1315,7 +1315,7 @@
  <label>Payment method<select id="expPayMethod" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"><option>Company Card</option><option>Bank Transfer</option><option value="Cash">Cash / Petty Cash</option></select></label>
  <label>Receipt reference<input id="expReference" maxlength="100" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"></label></div>
  <label class="block">Notes<textarea id="expNotes" rows="2" maxlength="1000" class="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"></textarea></label>
- <p class="text-slate-500">Paid business expenses in GBP. Enter receipt figures manually and review VAT. OCR / AI extraction is not available.</p>
+ <p class="text-slate-500">Paid business expenses in GBP. OCR suggestions require review and explicit approval before saving. Receipts are scanned locally in your browser.</p>
                 <!-- File Attachment Area -->
                 <div>
                     <label class="block font-medium mb-1">Receipt Attachment (photos up to 20 MB resized automatically; PDFs up to 2 MB)</label>
@@ -1330,6 +1330,49 @@
 <button type="button" onclick="removeExpenseReceipt()" class="px-3 py-2 text-brand-700 dark:text-brand-300 underline">Remove receipt</button>
 <input type="file" id="expCameraInput" accept="image/jpeg,image/png,image/webp" capture="environment" class="hidden" onchange="handleExpenseFileSelected(event)">
  <button type="button" onclick="document.getElementById('expCameraInput').click()" class="px-4 py-3 bg-brand-600 text-white rounded-xl">Take receipt photo</button>
+<div class="mt-3 rounded-2xl border border-brand-200 dark:border-brand-800 bg-brand-50/60 dark:bg-brand-950/20 p-4 space-y-3">
+  <div class="flex items-center justify-between flex-wrap gap-2">
+    <div>
+      <h4 class="text-sm font-bold">Receipt OCR scan</h4>
+      <p class="text-xs text-slate-500">JPG, PNG and WEBP photos. The first scan downloads an OCR engine; image processing stays in your browser.</p>
+    </div>
+    <button type="button" id="ocrScanButton" onclick="EvergreenOcrUI.scan()" class="px-4 py-2 rounded-xl bg-brand-600 text-white text-xs font-semibold disabled:opacity-50">Scan receipt</button>
+  </div>
+  <p id="ocrScanStatus" role="status" aria-live="polite" class="text-xs text-slate-500">Choose a receipt image, then scan.</p>
+  <div id="ocrReviewPanel" class="hidden space-y-3 border-t border-brand-200 dark:border-brand-800 pt-3">
+    <h4 class="text-sm font-bold">Review the OCR suggestions — not saved</h4>
+    <p id="ocrReviewConfidence" class="text-xs text-slate-500"></p>
+    <p id="ocrReviewWarnings" class="text-xs text-amber-600" aria-live="polite"></p>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2">
+        <p class="mb-2 text-xs font-semibold">Original receipt</p>
+        <img id="ocrReceiptImage" alt="Original receipt for review" class="max-h-72 w-full object-contain">
+      </div>
+      <div class="space-y-2">
+        <label class="block text-xs font-semibold">Merchant<input type="text" id="ocrReviewMerchant" maxlength="120" class="mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-2"></label>
+        <label class="block text-xs font-semibold">Receipt date<input type="date" id="ocrReviewDate" class="mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-2"></label>
+        <label class="block text-xs font-semibold">Gross total (£)<input type="number" id="ocrReviewTotal" min="0.01" step="0.01" oninput="EvergreenOcrUI.updateReviewCalculation()" class="mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-2"></label>
+        <label class="block text-xs font-semibold">VAT amount (£)<input type="number" id="ocrReviewVat" min="0" step="0.01" oninput="EvergreenOcrUI.updateReviewCalculation()" class="mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-2"></label>
+        <label class="block text-xs font-semibold">VAT treatment
+          <select id="ocrReviewVatRate" onchange="EvergreenOcrUI.updateReviewCalculation()" class="mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-2">
+            <option value="">Select after checking</option><option value="20">Standard 20%</option><option value="5">Reduced 5%</option><option value="0">Zero-rated 0%</option><option value="EXEMPT">Exempt</option>
+          </select>
+        </label>
+        <p id="ocrReviewNet" class="font-bold text-brand-700 dark:text-brand-300">Net: —</p>
+        <p id="ocrReviewValidation" class="text-xs text-slate-500" aria-live="polite"></p>
+      </div>
+    </div>
+    <details class="rounded-xl bg-slate-100 dark:bg-slate-800 p-3">
+      <summary class="text-xs font-semibold cursor-pointer">Show recognized text (not saved)</summary>
+      <pre id="ocrRecognizedText" class="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap break-words text-xs"></pre>
+    </details>
+    <div class="flex justify-end flex-wrap gap-2">
+      <button type="button" onclick="EvergreenOcrUI.discard()" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-xs font-semibold">Discard suggestions</button>
+      <button type="button" onclick="EvergreenOcrUI.apply()" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold">Apply reviewed values</button>
+    </div>
+    <p class="text-xs text-slate-500">Applying values fills the expense form only. The accounting entry is created only after you select Save Expense Entry.</p>
+  </div>
+</div>
                 <div class="expense-actions flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
                     <button type="button" onclick="closeModal('expenseModal')" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 font-semibold text-slate-700 dark:text-slate-200">Cancel</button>
                     <button id="expenseSaveButton" type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Save Expense Entry</button>
@@ -3038,6 +3081,8 @@ async function removeSelectedBankRows() {
     <script src="js/core/payments.js?v=invoice-branding-1"></script>
     <script src="js/core/banking.js?v=cash-ledger-1"></script>
     <script src="js/core/receipts.js?v=receipt-automation-2"></script>
+    <script src="js/core/receipt-ocr.js?v=ocr-review-1"></script>
+    <script src="js/ui/receipt-ocr.js?v=ocr-review-1"></script>
     <script src="js/core/bank-entries.js?v=cash-ledger-1"></script>
     <script src="js/ui/bank-workflows.js?v=bank-workflows-1"></script>
     <script src="js/core/reports.js?v=cash-ledger-1"></script>
