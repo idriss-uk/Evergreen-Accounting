@@ -2366,7 +2366,7 @@ function removeExpenseReceipt() {
   const data = prepared.data;
   if (version !== window.expUploadVersion) return;
   pendingExpenseFileBase64 = data; pendingExpenseFileName = prepared.metadata.fileName;
-  window.expReceipt = {...prepared.metadata,schemaVersion:2,capturedAt:new Date().toISOString(),source:e.target.id === 'expCameraInput' ? 'camera' : 'upload',extraction:{status:'not_connected',reviewRequired:true}};
+  window.expReceipt = {...prepared.metadata,schemaVersion:2,capturedAt:new Date().toISOString(),source:e.target.id === 'expCameraInput' ? 'camera' : 'upload',extraction:{status:'not_scanned',reviewRequired:true}};
   const duplicateReceipt = EvergreenReceipts.receiptDuplicates({id:window.editingExpenseId,receipt:window.expReceipt},appState.expenses || []);
   document.getElementById('expFileName').textContent = prepared.metadata.fileName + ' · ' + Math.ceil(prepared.metadata.sizeBytes / 1024) + ' KB · ' + (prepared.metadata.resized ? 'Resized · ' : '') + (prepared.metadata.ocrReady ? 'OCR-ready metadata' : 'Ready');
   if (duplicateReceipt.length) showToast('This receipt file already appears on another expense. Review before saving.','error');
@@ -3088,7 +3088,7 @@ async function removeSelectedBankRows() {
     <script src="js/core/banking.js?v=cash-ledger-1"></script>
     <script src="js/core/receipts.js?v=receipt-automation-2"></script>
     <script src="js/core/receipt-ocr.js?v=ocr-review-1"></script>
-    <script src="js/ui/receipt-ocr.js?v=ocr-review-1"></script>
+    <script src="js/ui/receipt-ocr.js?v=ocr-review-2"></script>
     <script src="js/core/bank-entries.js?v=cash-ledger-1"></script>
     <script src="js/ui/bank-workflows.js?v=bank-workflows-1"></script>
     <script src="js/core/reports.js?v=cash-ledger-1"></script>
