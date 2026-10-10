@@ -1,4 +1,4 @@
-const CACHE_NAME = 'evergreen-v5-shell-v26';
+const CACHE_NAME = 'evergreen-v5-shell-v27';
 const APP_SHELL = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const APP_SHELL = [
   './assets/vendor/icons-6.4.0.css',
   './assets/vendor/chart-4.4.8.umd.js',
   './js/core/state.js',
+  './js/core/integrity.js?v=reliability-2',
   './js/core/storage.js?v=receipt-storage-1',
   './js/core/ledger.js?v=cash-ledger-1',
   './js/core/customers.js',
