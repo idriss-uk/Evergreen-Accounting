@@ -105,6 +105,30 @@
       });
     }
 
+    // Cross-check journal-derived reports without changing or repairing records.
+    if (window.EvergreenReports?.trialBalance) {
+      try {
+        const tb=window.EvergreenReports.trialBalance(state);
+        if(!Number.isFinite(tb.totalDebit) || !Number.isFinite(tb.totalCredit)) {
+          add('error','trial-balance-invalid','Trial Balance contains a non-finite amount.');
+        } else if(Math.abs(round(tb.totalDebit-tb.totalCredit))>0.01) {
+          add('error','trial-balance-mismatch','Ledger Trial Balance does not balance.');
+        }
+      } catch(error) {
+        add('error','trial-balance-failed','Unable to prepare Trial Balance: '+error.message);
+      }
+    }
+    if (window.EvergreenReports?.balanceSheet) {
+      try {
+        const balance=window.EvergreenReports.balanceSheet(state);
+        if(!Number.isFinite(balance.difference) || Math.abs(balance.difference)>0.01) {
+          add('warning','balance-sheet-mismatch','Balance Sheet assets do not equal liabilities plus equity.');
+        }
+      } catch(error) {
+        add('warning','balance-sheet-failed','Balance Sheet could not be checked: '+error.message);
+      }
+    }
+
     const errorCount=issues.filter(issue=>issue.severity==='error').length;
     const warningCount=issues.filter(issue=>issue.severity==='warning').length;
     return {issues,errorCount,warningCount,ok:errorCount===0,checkedAt:new Date().toISOString()};
