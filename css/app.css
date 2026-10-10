@@ -277,3 +277,25 @@ body {
  .header-brand > div:last-child > span:last-child { display: none; }
  .app-header > .max-w-7xl > .flex { gap: 10px; }
 }
+
+
+/* V5 OCR review: prevent the primary Save button from covering approval controls
+   and avoid suggesting that unreviewed OCR values have been posted. */
+#expenseForm.ocr-review-active .expense-actions {
+  display: none !important;
+}
+#expenseForm #ocrReviewPanel {
+  scroll-margin-top: 1rem;
+  padding-bottom: 1rem;
+}
+#expenseForm #ocrReviewPanel button {
+  min-height: 44px;
+}
+@media (max-width: 767px) {
+  #expenseForm #ocrReviewPanel .flex.justify-end {
+    flex-direction: column;
+  }
+  #expenseForm #ocrReviewPanel .flex.justify-end button {
+    width: 100%;
+  }
+}
