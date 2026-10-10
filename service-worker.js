@@ -1,8 +1,8 @@
-const CACHE_NAME = 'evergreen-v5-shell-v25';
+const CACHE_NAME = 'evergreen-v5-shell-v26';
 const APP_SHELL = [
   './',
   './index.html',
-  './css/app.css?v=sidebar-1',
+  './css/app.css?v=ocr-mobile-1',
   './js/app.js',
   './assets/vendor/utilities.css?v=cash-ledger-1',
   './assets/vendor/inter-5.2.5.css',
@@ -16,8 +16,8 @@ const APP_SHELL = [
   './js/core/payments.js?v=invoice-branding-1',
   './js/core/banking.js?v=cash-ledger-1',
   './js/core/receipts.js?v=receipt-automation-2',
-  './js/core/receipt-ocr.js?v=ocr-review-2',
-  './js/ui/receipt-ocr.js?v=ocr-review-2',
+  './js/core/receipt-ocr.js?v=ocr-review-3',
+  './js/ui/receipt-ocr.js?v=ocr-review-3',
   './js/core/bank-entries.js?v=cash-ledger-1',
   './js/ui/bank-workflows.js?v=bank-workflows-1',
   './js/core/reports.js?v=cash-ledger-1',
