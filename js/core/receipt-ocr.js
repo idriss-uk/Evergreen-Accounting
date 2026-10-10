@@ -84,11 +84,14 @@
 
   function extractMerchant(text) {
     const lines=String(text||'').split(/\r?\n/).map(clean).filter(Boolean);
-    for(const line of lines.slice(0,7)){
-      if(line.length<3 || line.length>65 || !/[a-z]{3}/i.test(line)) continue;
-      if(/\b(receipt|invoice|tax invoice|order no|terminal|vat reg|date|time|cardholder|transaction|subtotal|total|thank you|welcome|customer copy|sales receipt|tel:|telephone|street|road|postcode|email|www\.|https?:|card:)\b/i.test(line)) continue;
-      if(/^[\d\s£.,/#*-]+$/.test(line) || /(?:\d{1,2}:\d{2}|\d{4,})/.test(line)) continue;
-      return {value:line,score:68,source:line};
+    for(const line of lines.slice(0,9)){
+      // OCR often joins a supplier heading on the left with the INVOICE title on the right.
+      // Remove a trailing document heading, but preserve brand names such as InvoiceMate.
+      const merchantLine=clean(line.replace(/(?:\s+|\s*[-—–|:]\s*)(?:(?:TAX\s+)?(?:INVOICE|NVOICE|INV0ICE|INV01CE)|RECEIPT)\s*$/i,''));
+      if(merchantLine.length<3 || merchantLine.length>65 || !/[a-z]{3}/i.test(merchantLine)) continue;
+      if(/\b(receipt|invoice|tax invoice|order no|terminal|vat reg|date|time|cardholder|transaction|subtotal|total|thank you|welcome|customer copy|sales receipt|tel:|telephone|street|road|postcode|email|www\.|https?:|card:)\b/i.test(merchantLine)) continue;
+      if(/^[\d\s£.,/#*-]+$/.test(merchantLine) || /(?:\d{1,2}:\d{2}|\d{4,})/.test(merchantLine)) continue;
+      return {value:merchantLine,score:68,source:line};
     }
     return null;
   }
@@ -118,6 +121,11 @@
     if(vat===null) warnings.push('VAT was not identified. Do not assume the purchase is zero-rated.');
     if(!date) warnings.push('Receipt date not identified.');
     if(!merchant) warnings.push('Merchant not identified.');
+    // Invoices can represent a supplier purchase or the user's own issued sales.
+    // OCR cannot decide the bookkeeping treatment safely.
+    const documentHints = /\b(?:INVOICE|NVOICE|INV0ICE|INV01CE)\b/i.test(text)
+      && /\b(?:BILL\s*TO|INVOICE\s*(?:NO|NUMBER|#)|TOTAL\s*DUE)\b/i.test(text);
+    if(documentHints) warnings.push('This appears to be an invoice. Confirm whether it is a supplier purchase or your own sales invoice before posting under Expenses.');
     if(amounts.conflictingGross) warnings.push('Multiple different totals found. Confirm the correct amount.');
     if(vat!==null && total!==null && (vat<0 || vat>total)) {
       warnings.push('VAT exceeds the total. Review the original figures.');
