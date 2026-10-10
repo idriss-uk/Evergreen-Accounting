@@ -30,6 +30,7 @@
     applied=false;
     window.expOcrPending=false;
     window.expOcrApplied=false;
+    el('expenseForm')?.classList.remove('ocr-review-active');
     // An OCR worker in progress cannot be interrupted safely; invalidate its results.
     setBusy(false);
     const panel=el('ocrReviewPanel');
@@ -78,6 +79,7 @@
     const s=result.suggestions;
     const panel=el('ocrReviewPanel');
     panel.classList.remove('hidden');
+    el('expenseForm')?.classList.add('ocr-review-active');
     const image=el('ocrReceiptImage');
     image.src=pendingExpenseFileBase64;
     el('ocrReviewMerchant').value=s.merchant||'';
@@ -201,6 +203,7 @@
     window.expOcrPending=false;
     window.expOcrApplied=true;
     el('ocrReviewPanel').classList.add('hidden');
+    el('expenseForm')?.classList.remove('ocr-review-active');
     pendingReview=null;
     status('Reviewed suggestions copied into the expense form. Select Save Expense Entry to post them; nothing has been posted yet.');
     if(typeof showToast==='function') showToast('OCR values applied. Check the expense form, then save when ready.');
