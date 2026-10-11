@@ -3,6 +3,24 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {chromium}=require('playwright');
 const root=path.resolve(__dirname,'..');
 const mime={'.html':'text/html','.css':'text/css','.js':'text/javascript','.json':'application/json','.svg':'image/svg+xml'};
+// Waiting for in-memory posting alone does not imply the queued IndexedDB write committed.
+async function savedSnapshot(page){
+ await page.waitForFunction(()=>pendingStateSaves===0);
+ return page.evaluate(async()=>{
+  await stateSaveQueue;
+  if(pendingStateSaves!==0) throw Error('A new save started before persistence verification.');
+  const stored=await EvergreenStorage.loadSnapshot();
+  if(!stored || stored.metadata.saveRevision!==appState.metadata.saveRevision) {
+   throw Error('IndexedDB does not contain the latest accounting revision.');
+  }
+  return stored;
+ });
+}
+async function reloadAfterSave(page){
+ await savedSnapshot(page);
+ await page.reload({waitUntil:'networkidle'});
+ await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+}
 async function run(){
  const server=http.createServer((req,res)=>{
   const url=new URL(req.url,'http://localhost');let name=url.pathname.replace(/^\/Evergreen-Accounting\//,'');
@@ -38,8 +56,7 @@ async function run(){
   const startingProfit=await page.evaluate(()=>EvergreenReports.profitAndLoss(appState).netProfit);
   const image=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=600;canvas.height=200;const ctx=canvas.getContext('2d');ctx.fillStyle='#556B2F';ctx.fillRect(0,0,600,200);ctx.fillStyle='#fff';ctx.font='48px Arial';ctx.fillText('TEST RECEIPT',30,115);return canvas.toDataURL('image/png').split(',')[1];});
   await context.setOffline(true);
-  await page.reload({waitUntil:'networkidle'});
-  await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  await reloadAfterSave(page);
   assert.equal(await page.evaluate(()=>getComputedStyle(document.getElementById('storageBusy')).display),'none');
   assert.equal(await page.evaluate(()=>typeof Chart),'function');
   await page.evaluate(()=>document.fonts.ready);
@@ -56,8 +73,7 @@ async function run(){
   await page.waitForFunction(()=>!window.expUploading && Boolean(window.expReceipt?.sha256 && pendingExpenseFileBase64));
   await page.locator('#expenseSaveButton').click();
   await page.waitForFunction(()=>document.getElementById('expenseModal').classList.contains('hidden'));
-  await page.reload({waitUntil:'networkidle'});
-  await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  await reloadAfterSave(page);
   await page.locator('#tabBtn-expenses').click();
   const expenseRow=page.locator('#expensesTableBody tr').filter({hasText:'Offline Reliability Test'});
   assert.equal(await expenseRow.count(),1);
@@ -78,10 +94,34 @@ async function run(){
   const csv='Date,Description,Amount\n07/10/2026,Offline Test Customer INV-OFFLINE-TEST,40\n07/10/2026,Offline Test Customer INV-OFFLINE-TEST,80';
   await page.locator('#bankCsvInput').setInputFiles({name:'offline-bank.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
   await page.waitForFunction(()=>appState.bankTransactions.filter(tx=>tx.description.includes('INV-OFFLINE-TEST')).length===2);
+  // Hold this save to deterministically exercise CI's in-memory/durable-state gap.
+  await savedSnapshot(page);
+  await page.evaluate(()=>{
+   const storage=window.EvergreenStorage;
+   window.reconciliationStorage=storage;
+   window.EvergreenStorage={...storage,saveSnapshot:async snapshot=>{
+    await new Promise(resolve=>{window.releaseReconciliationSave=resolve;});
+    return storage.saveSnapshot(snapshot);
+   }};
+  });
   await page.getByRole('button',{name:/Run Smart Match/}).click();
   await page.waitForFunction(()=>EvergreenPayments.outstandingAmount(appState,'Invoice','INV-OFFLINE-TEST')===0);
-  await page.reload({waitUntil:'networkidle'});
-  await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  await page.waitForFunction(()=>typeof window.releaseReconciliationSave==='function');
+  const beforeCommit=await page.evaluate(async()=>({
+   pending:pendingStateSaves,
+   stored:EvergreenPayments.paymentSummary(await EvergreenStorage.loadSnapshot(),'Invoice','INV-OFFLINE-TEST').status
+  }));
+  assert.equal(beforeCommit.pending,1);
+  assert.equal(beforeCommit.stored,'Unpaid');
+  await page.evaluate(()=>{
+   window.releaseReconciliationSave();
+   window.EvergreenStorage=window.reconciliationStorage;
+   delete window.reconciliationStorage;delete window.releaseReconciliationSave;
+  });
+  const committed=await savedSnapshot(page);
+  assert.equal(committed.invoices.find(doc=>doc.id==='INV-OFFLINE-TEST').status,'Paid');
+  assert.equal(committed.payments.filter(payment=>payment.documentId==='INV-OFFLINE-TEST').length,2);
+  await reloadAfterSave(page);
   const result=await page.evaluate(()=>({status:EvergreenPayments.paymentSummary(appState,'Invoice','INV-OFFLINE-TEST').status,payments:appState.payments.filter(p=>p.documentId==='INV-OFFLINE-TEST').length,difference:EvergreenReports.trialBalance(appState).totalDebit-EvergreenReports.trialBalance(appState).totalCredit,profit:EvergreenReports.profitAndLoss(appState).netProfit,receipt:appState.expenses.find(e=>e.merchant==='Offline Reliability Test').attachment}));
   assert.equal(result.status,'Paid');assert.equal(result.payments,2);assert.equal(result.difference,0);assert.equal(Math.round((result.profit-startingProfit)*100),8201);assert.equal(result.receipt,'data:image/png;base64,'+image);
   // Create an already-recorded partial payment and expense through their normal forms.
@@ -152,8 +192,7 @@ async function run(){
   await bankRow('Existing Receipt Merchant').getByRole('button',{name:'Match Existing',exact:true}).click();
   await page.locator('#existingBankSave').click();
   await page.waitForFunction(()=>document.getElementById('existingBankMatchModal').classList.contains('hidden'));
-  await page.reload({waitUntil:'networkidle'});
-  await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  await reloadAfterSave(page);
   const persisted=await page.evaluate(()=>({sale:EvergreenPayments.paymentSummary(appState,'Invoice','INV-DIRECT-TEST'),expense:appState.expenses.find(e=>e.merchant==='Direct Merchant'),existingExpense:appState.expenses.find(e=>e.merchant==='Existing Receipt Merchant'),links:appState.bankTransactions.filter(tx=>tx.matchMode==='existing').length,tb:EvergreenReports.trialBalance(appState)}));
   assert.equal(persisted.sale.status,'Paid');assert.equal(persisted.sale.gross,180);assert.equal(persisted.expense.grossAmount,84);assert.equal(persisted.expense.attachment,'data:image/png;base64,'+image);assert.equal(persisted.existingExpense.attachment,'data:image/png;base64,'+image);assert.equal(persisted.links,2);assert.equal(persisted.tb.totalDebit,persisted.tb.totalCredit);
   await page.locator('#tabBtn-cash').click();
@@ -173,8 +212,7 @@ async function run(){
   await page.locator('#expNet').fill('10');
   await page.locator('#expenseSaveButton').click();
   await page.waitForFunction(()=>document.getElementById('expenseModal').classList.contains('hidden'));
-  await page.reload({waitUntil:'networkidle'});
-  await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  await reloadAfterSave(page);
   await page.locator('#tabBtn-cash').click();
   assert.equal(await page.locator('#cashCurrent').textContent(),'£188.00');
   assert.ok((await page.locator('#cashLedgerRows').textContent()).includes('Cash Browser Merchant'));

@@ -27,3 +27,11 @@ The browser suite uses the current Add Expense / Receipt and View controls. Uplo
 The full suite passed using installed Chromium on Linux (`CHROME_PATH=/usr/bin/chromium npm run test:browser`), with no page errors or external requests. All Node regressions passed with `npm test`. No application changes or accounting calculation changes were necessary. Tests run in a fresh, isolated browser context; production records and receipts are untouched.
 
 CI now installs the pinned dependencies and Playwright Chromium, runs both complete suites, and uploads browser screenshots and failure HTML. A failing browser run writes `test-results/browser-failure.png` and `test-results/browser-failure.html`. Screenshot and HTML artifacts use only isolated test records.
+
+## Reconciliation persistence race
+
+GitHub Actions on Node 22 and Playwright Chromium 151 exposed a premature reload after Smart Match: payment posting sets the in-memory invoice to Paid before the queued save commits. `triggerAutoMatch` correctly awaits `saveState`; the save queue serializes snapshots and `saveSnapshot` resolves on IndexedDB transaction completion, then the browser fallback is updated. The browser test was waiting only for the in-memory balance.
+
+Holding the reconciliation save reproduced the same Unpaid-after-reload failure on Node 22 with installed Chromium: one save was pending, memory was Paid, and the stored snapshot was Unpaid. The repaired test deliberately holds and releases that save, verifies both payments and Paid status in the committed snapshot, and still requires Paid after reload. Every test reload now waits for the save queue to drain and verifies the latest revision in IndexedDB. No extra save is issued by the test helper, so an absent or stale application save fails verification. No production code or accounting calculations changed.
+
+All Node regressions and the full browser suite passed locally on Node 22. The cloud environment blocks the Playwright CDN and cannot install OS dependencies as root; verification using the workflow's bundled Chromium runs in GitHub Actions.
