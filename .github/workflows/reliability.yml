@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   reliability:
-    name: Accounting integrity and backup checks
+    name: Accounting regressions and offline browser workflows
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -20,5 +20,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify backup and accounting integrity
-        run: node --test tests/integrity.test.cjs
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run all Node.js regression tests
+        run: npm test
+      - name: Run full Playwright browser suite
+        run: npm run test:browser
+      - name: Preserve browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-results
+          path: test-results/
+          if-no-files-found: ignore
