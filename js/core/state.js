@@ -58,7 +58,9 @@
       'suppliers',
       'payments',
       'vatReturns',
-      'ledgerEntries'
+      'ledgerEntries',
+      'recurringTemplates',
+      'paymentReminders'
     ];
 
     arrayKeys.forEach((key) => {

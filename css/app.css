@@ -299,3 +299,15 @@ body {
     width: 100%;
   }
 }
+
+/* Automation forms and tables stay usable in the local mobile workspace. */
+#tab-automation label { min-width: 0; max-width: 100%; }
+#tab-automation input, #tab-automation select, #paymentReminderText {
+  min-width: 0; max-width: 100%; color: inherit; background: #fff;
+}
+#tab-automation table { min-width: 640px; }
+#tab-automation form:not(#recurringForm) > label { flex: 1 1 220px; }
+#tab-automation form:not(#recurringForm) select { width: 100%; }
+.dark #tab-automation input, .dark #tab-automation select, .dark #paymentReminderText {
+  background: #0f172a; border-color: #334155;
+}

@@ -5,7 +5,7 @@
   const VERSION = 1;
   const COLLECTIONS = [
     'invoices','bills','expenses','bankTransactions','cisRecords',
-    'customers','suppliers','payments','vatReturns','ledgerEntries'
+    'customers','suppliers','payments','vatReturns','ledgerEntries','recurringTemplates','paymentReminders'
   ];
   const clone = value => JSON.parse(JSON.stringify(value));
   const round = value => Math.round(value * 100) / 100;
