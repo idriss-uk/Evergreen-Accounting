@@ -3,6 +3,24 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {chromium}=require('playwright');
 const root=path.resolve(__dirname,'..');
 const mime={'.html':'text/html','.css':'text/css','.js':'text/javascript','.json':'application/json','.svg':'image/svg+xml'};
+// Waiting for in-memory posting alone does not imply the queued IndexedDB write committed.
+async function savedSnapshot(page){
+ await page.waitForFunction(()=>pendingStateSaves===0);
+ return page.evaluate(async()=>{
+  await stateSaveQueue;
+  if(pendingStateSaves!==0) throw Error('A new save started before persistence verification.');
+  const stored=await EvergreenStorage.loadSnapshot();
+  if(!stored || stored.metadata.saveRevision!==appState.metadata.saveRevision) {
+   throw Error('IndexedDB does not contain the latest accounting revision.');
+  }
+  return stored;
+ });
+}
+async function reloadAfterSave(page){
+ await savedSnapshot(page);
+ await page.reload({waitUntil:'networkidle'});
+ await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+}
 async function run(){
  const server=http.createServer((req,res)=>{
   const url=new URL(req.url,'http://localhost');let name=url.pathname.replace(/^\/Evergreen-Accounting\//,'');
@@ -11,27 +29,34 @@ async function run(){
   if(!file.startsWith(root+path.sep)||!fs.existsSync(file)||fs.statSync(file).isDirectory()){res.writeHead(404);res.end();return;}
   res.writeHead(200,{'content-type':mime[path.extname(file)]||'application/octet-stream','cache-control':'no-cache'});fs.createReadStream(file).pipe(res);
  });
- await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
  const url=`http://127.0.0.1:${server.address().port}/Evergreen-Accounting/`;
  const executable=process.env.CHROME_PATH||['C:/Program Files/Google/Chrome/Application/chrome.exe','C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].find(file=>fs.existsSync(file));
- let browser;
+ let browser,page;
  try {
   browser=await chromium.launch({headless:true,...(executable?{executablePath:executable}:{})});
   const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true});
-  await context.addInitScript(()=>{caches.open('other-project-cache').then(cache=>cache.put('marker',new Response('keep')));});
-  const page=await context.newPage(),errors=[],external=[];
+  await context.addInitScript(()=>{
+   if(!sessionStorage.getItem('test-cache-seeded')) {
+    sessionStorage.setItem('test-cache-seeded','true');
+    window.testCacheSeed=caches.open('other-project-cache').then(cache=>cache.put('marker',new Response('keep')));
+   }
+  });
+  context.setDefaultTimeout(15000);
+  page=await context.newPage();
+  const errors=[],external=[];
   page.on('pageerror',error=>errors.push(error.message));
   page.on('request',request=>{if(!request.url().startsWith(url)&&!request.url().startsWith('data:')&&!request.url().startsWith('blob:'))external.push(request.url());});
   await page.goto(url,{waitUntil:'networkidle'});
   await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  await page.evaluate(()=>window.testCacheSeed);
   await page.evaluate(()=>navigator.serviceWorker.ready);
   await page.waitForFunction(()=>navigator.serviceWorker.controller);
   assert.equal(await page.evaluate(()=>caches.has('other-project-cache')),true);
   const startingProfit=await page.evaluate(()=>EvergreenReports.profitAndLoss(appState).netProfit);
   const image=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=600;canvas.height=200;const ctx=canvas.getContext('2d');ctx.fillStyle='#556B2F';ctx.fillRect(0,0,600,200);ctx.fillStyle='#fff';ctx.font='48px Arial';ctx.fillText('TEST RECEIPT',30,115);return canvas.toDataURL('image/png').split(',')[1];});
   await context.setOffline(true);
-  await page.reload({waitUntil:'networkidle'});
-  await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  await reloadAfterSave(page);
   assert.equal(await page.evaluate(()=>getComputedStyle(document.getElementById('storageBusy')).display),'none');
   assert.equal(await page.evaluate(()=>typeof Chart),'function');
   await page.evaluate(()=>document.fonts.ready);
@@ -39,25 +64,24 @@ async function run(){
   assert.equal(await page.evaluate(()=>document.fonts.check('400 16px Inter')),true);
   assert.ok((await page.evaluate(()=>getComputedStyle(document.body).fontFamily)).includes('Inter'));
   await page.locator('#tabBtn-expenses').click();
-  await page.locator('#tab-expenses button').filter({hasText:'Log Expense & Attach Receipt'}).click();
+  await page.locator('#tab-expenses').getByRole('button',{name:/Add Expense \/ Receipt/}).click();
   await page.locator('#expMerchant').fill('Offline Reliability Test');
   await page.locator('#expCategory').selectOption('Software & IT');
   await page.locator('#expNet').fill('17.99');
   await page.locator('#expVatRate').selectOption('20');
   await page.locator('#expFileInput').setInputFiles({name:'offline-receipt.png',mimeType:'image/png',buffer:Buffer.from(image,'base64')});
-  await page.waitForFunction(()=>document.getElementById('expFileName').textContent.includes('Ready'));
+  await page.waitForFunction(()=>!window.expUploading && Boolean(window.expReceipt?.sha256 && pendingExpenseFileBase64));
   await page.locator('#expenseSaveButton').click();
   await page.waitForFunction(()=>document.getElementById('expenseModal').classList.contains('hidden'));
-  await page.reload({waitUntil:'networkidle'});
-  await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  await reloadAfterSave(page);
   await page.locator('#tabBtn-expenses').click();
   const expenseRow=page.locator('#expensesTableBody tr').filter({hasText:'Offline Reliability Test'});
   assert.equal(await expenseRow.count(),1);
-  await expenseRow.getByRole('button',{name:/View Receipt/}).click();
-  assert.equal(await page.locator('#receiptViewerContent img').evaluate(img=>img.complete&&img.naturalWidth===600),true);
+  await expenseRow.getByRole('button',{name:/View/}).click();
+  await page.waitForFunction(()=>{const img=document.querySelector('#receiptViewerContent img');return img?.complete&&img.naturalWidth===600;});
   await page.evaluate(()=>closeModal('receiptViewerModal'));
   await page.locator('#tabBtn-sales').click();
-  await page.locator('#tab-sales button').filter({hasText:'Create Sales Invoice'}).click();
+  await page.locator('#tab-sales').getByRole('button',{name:/Create Sales Invoice/}).click();
   await page.locator('#invCustomer').fill('Offline Test Customer');
   await page.locator('#invNumber').fill('INV-OFFLINE-TEST');
   await page.locator('#invDate').fill('2026-10-07');
@@ -70,15 +94,39 @@ async function run(){
   const csv='Date,Description,Amount\n07/10/2026,Offline Test Customer INV-OFFLINE-TEST,40\n07/10/2026,Offline Test Customer INV-OFFLINE-TEST,80';
   await page.locator('#bankCsvInput').setInputFiles({name:'offline-bank.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
   await page.waitForFunction(()=>appState.bankTransactions.filter(tx=>tx.description.includes('INV-OFFLINE-TEST')).length===2);
+  // Hold this save to deterministically exercise CI's in-memory/durable-state gap.
+  await savedSnapshot(page);
+  await page.evaluate(()=>{
+   const storage=window.EvergreenStorage;
+   window.reconciliationStorage=storage;
+   window.EvergreenStorage={...storage,saveSnapshot:async snapshot=>{
+    await new Promise(resolve=>{window.releaseReconciliationSave=resolve;});
+    return storage.saveSnapshot(snapshot);
+   }};
+  });
   await page.getByRole('button',{name:/Run Smart Match/}).click();
   await page.waitForFunction(()=>EvergreenPayments.outstandingAmount(appState,'Invoice','INV-OFFLINE-TEST')===0);
-  await page.reload({waitUntil:'networkidle'});
-  await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  await page.waitForFunction(()=>typeof window.releaseReconciliationSave==='function');
+  const beforeCommit=await page.evaluate(async()=>({
+   pending:pendingStateSaves,
+   stored:EvergreenPayments.paymentSummary(await EvergreenStorage.loadSnapshot(),'Invoice','INV-OFFLINE-TEST').status
+  }));
+  assert.equal(beforeCommit.pending,1);
+  assert.equal(beforeCommit.stored,'Unpaid');
+  await page.evaluate(()=>{
+   window.releaseReconciliationSave();
+   window.EvergreenStorage=window.reconciliationStorage;
+   delete window.reconciliationStorage;delete window.releaseReconciliationSave;
+  });
+  const committed=await savedSnapshot(page);
+  assert.equal(committed.invoices.find(doc=>doc.id==='INV-OFFLINE-TEST').status,'Paid');
+  assert.equal(committed.payments.filter(payment=>payment.documentId==='INV-OFFLINE-TEST').length,2);
+  await reloadAfterSave(page);
   const result=await page.evaluate(()=>({status:EvergreenPayments.paymentSummary(appState,'Invoice','INV-OFFLINE-TEST').status,payments:appState.payments.filter(p=>p.documentId==='INV-OFFLINE-TEST').length,difference:EvergreenReports.trialBalance(appState).totalDebit-EvergreenReports.trialBalance(appState).totalCredit,profit:EvergreenReports.profitAndLoss(appState).netProfit,receipt:appState.expenses.find(e=>e.merchant==='Offline Reliability Test').attachment}));
-  assert.equal(result.status,'Paid');assert.equal(result.payments,2);assert.equal(result.difference,0);assert.equal(Math.round((result.profit-startingProfit)*100),8201);assert.ok(result.receipt.startsWith('data:image/png;'));
+  assert.equal(result.status,'Paid');assert.equal(result.payments,2);assert.equal(result.difference,0);assert.equal(Math.round((result.profit-startingProfit)*100),8201);assert.equal(result.receipt,'data:image/png;base64,'+image);
   // Create an already-recorded partial payment and expense through their normal forms.
   await page.locator('#tabBtn-sales').click();
-  await page.locator('#tab-sales button').filter({hasText:'Create Sales Invoice'}).click();
+  await page.locator('#tab-sales').getByRole('button',{name:/Create Sales Invoice/}).click();
   await page.locator('#invCustomer').fill('Existing Link Customer');
   await page.locator('#invNumber').fill('INV-LINK-TEST');
   await page.locator('#invDate').fill('2026-10-07');
@@ -90,13 +138,14 @@ async function run(){
   await page.locator('#invoiceForm button[type=submit]').click();
   await page.waitForFunction(()=>document.getElementById('invoiceModal').classList.contains('hidden'));
   await page.locator('#tabBtn-expenses').click();
-  await page.locator('#tab-expenses button').filter({hasText:'Log Expense & Attach Receipt'}).click();
+  await page.locator('#tab-expenses').getByRole('button',{name:/Add Expense \/ Receipt/}).click();
   await page.locator('#expMerchant').fill('Existing Receipt Merchant');
   await page.locator('#expDate').fill('2026-10-07');
   await page.locator('#expNet').fill('25');
   await page.locator('#expVatRate').selectOption('20');
   await page.locator('#expFileInput').setInputFiles({name:'existing-receipt.png',mimeType:'image/png',buffer:Buffer.from(image,'base64')});
-  await page.waitForFunction(()=>document.getElementById('expFileName').textContent.includes('Ready'));
+  await page.waitForFunction(()=>!window.expUploading && Boolean(window.expReceipt?.sha256 && pendingExpenseFileBase64));
+  page.once('dialog',async dialog=>{assert.match(dialog.message(),/exact receipt file/);await dialog.accept();});
   await page.locator('#expenseSaveButton').click();
   await page.waitForFunction(()=>document.getElementById('expenseModal').classList.contains('hidden'));
   await page.locator('#tabBtn-bank').click();
@@ -143,10 +192,9 @@ async function run(){
   await bankRow('Existing Receipt Merchant').getByRole('button',{name:'Match Existing',exact:true}).click();
   await page.locator('#existingBankSave').click();
   await page.waitForFunction(()=>document.getElementById('existingBankMatchModal').classList.contains('hidden'));
-  await page.reload({waitUntil:'networkidle'});
-  await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  await reloadAfterSave(page);
   const persisted=await page.evaluate(()=>({sale:EvergreenPayments.paymentSummary(appState,'Invoice','INV-DIRECT-TEST'),expense:appState.expenses.find(e=>e.merchant==='Direct Merchant'),existingExpense:appState.expenses.find(e=>e.merchant==='Existing Receipt Merchant'),links:appState.bankTransactions.filter(tx=>tx.matchMode==='existing').length,tb:EvergreenReports.trialBalance(appState)}));
-  assert.equal(persisted.sale.status,'Paid');assert.equal(persisted.sale.gross,180);assert.equal(persisted.expense.grossAmount,84);assert.ok(persisted.expense.attachment);assert.ok(persisted.existingExpense.attachment);assert.equal(persisted.links,2);assert.equal(persisted.tb.totalDebit,persisted.tb.totalCredit);
+  assert.equal(persisted.sale.status,'Paid');assert.equal(persisted.sale.gross,180);assert.equal(persisted.expense.grossAmount,84);assert.equal(persisted.expense.attachment,'data:image/png;base64,'+image);assert.equal(persisted.existingExpense.attachment,'data:image/png;base64,'+image);assert.equal(persisted.links,2);assert.equal(persisted.tb.totalDebit,persisted.tb.totalCredit);
   await page.locator('#tabBtn-cash').click();
   const beforeCashFailure=await page.evaluate(()=>appState.ledgerEntries.length);
   await page.locator('#cashAmount').fill('50');
@@ -164,8 +212,7 @@ async function run(){
   await page.locator('#expNet').fill('10');
   await page.locator('#expenseSaveButton').click();
   await page.waitForFunction(()=>document.getElementById('expenseModal').classList.contains('hidden'));
-  await page.reload({waitUntil:'networkidle'});
-  await page.waitForFunction(()=>document.getElementById('storageBusy').classList.contains('hidden'));
+  await reloadAfterSave(page);
   await page.locator('#tabBtn-cash').click();
   assert.equal(await page.locator('#cashCurrent').textContent(),'£188.00');
   assert.ok((await page.locator('#cashLedgerRows').textContent()).includes('Cash Browser Merchant'));
@@ -194,8 +241,16 @@ async function run(){
   await page.getByRole('button',{name:'Trial Balance',exact:true}).click();
   fs.mkdirSync(path.join(root,'test-results'),{recursive:true});
   await page.screenshot({path:path.join(root,'test-results/offline-reports.png'),fullPage:true});
+  assert.equal(await page.evaluate(async()=>{const response=await (await caches.open('other-project-cache')).match('marker');return response?.text();}),'keep');
   assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
   console.log('PASS: cash funding, cash spending, refresh persistence, transfer links without reposting, negative balance warning and save rollback; native Chromium offline records, direct bank sales/expenses, receipt uploads, existing payment/expense links without reposting, unlinking, failed-save rollback, report balances and cache preservation.');
+ } catch(error) {
+  if(page && !page.isClosed()) {
+   fs.mkdirSync(path.join(root,'test-results'),{recursive:true});
+   await page.screenshot({path:path.join(root,'test-results/browser-failure.png'),fullPage:true,timeout:5000}).catch(()=>{});
+   fs.writeFileSync(path.join(root,'test-results/browser-failure.html'),await page.content().catch(()=>''));
+  }
+  throw error;
  } finally {await browser?.close();await new Promise(resolve=>server.close(resolve));}
 }
 run().catch(error=>{console.error(error);process.exitCode=1;});
