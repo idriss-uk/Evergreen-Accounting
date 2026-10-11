@@ -8,9 +8,9 @@
     <meta name="description" content="Evergreen Accounting is a local-first UK business accounting app for sales, purchases, expenses, banking, VAT and tax workflows.">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="assets/evergreen-icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="css/app.css?v=ocr-mobile-1">
+    <link rel="stylesheet" href="css/app.css?v=automation-1">
     <!-- Local styles and fonts, available offline -->
-    <link rel="stylesheet" href="assets/vendor/utilities.css?v=cash-ledger-1">
+    <link rel="stylesheet" href="assets/vendor/utilities.css?v=automation-1">
     <link rel="stylesheet" href="assets/vendor/inter-5.2.5.css">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="assets/vendor/icons-6.4.0.css">
@@ -148,6 +148,7 @@
                     <button id="tabBtn-dashboard" aria-current="page" onclick="switchTab('dashboard')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2 active-tab">
                         <i class="fa-solid fa-gauge-high"></i> Dashboard
                     </button>
+                    <button id="tabBtn-automation" onclick="switchTab('automation')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap">Automation</button>
                     <button id="tabBtn-sales" onclick="switchTab('sales')" class="nav-tab px-3 py-2 text-xs font-medium rounded-md whitespace-nowrap transition flex items-center gap-2">
                         <i class="fa-solid fa-file-invoice-dollar"></i> Sales & Credit Notes
                     </button>
@@ -372,6 +373,58 @@
             </section>
 
             <!-- 2. SALES MODULE (Invoices & Credit Notes) -->
+            <section id="tab-automation" class="tab-content hidden space-y-6">
+ <div class="glass-panel p-5 rounded-2xl space-y-3">
+  <h2 class="text-xl font-bold">Business Automation · V5.6</h2>
+  <p>Works offline on this device. Review and generate invoices when you open Evergreen. Automatic background processing requires a future server-side scheduler. Nothing is generated or sent automatically.</p>
+ </div>
+ <div class="glass-panel p-5 rounded-2xl space-y-4">
+  <h3 class="text-lg font-bold">Recurring invoice templates</h3>
+  <p>Copy the customer and line items from an existing invoice. Payments and bank links are never copied. Each action generates one scheduled invoice.</p>
+  <form id="recurringForm" class="grid sm:grid-cols-2 gap-3" onsubmit="EvergreenAutomationUI.create(event)">
+   <label>Template name<input id="recurringName" required maxlength="100" class="w-full p-2 border rounded-xl"></label>
+   <label>Source invoice<select id="recurringSource" required class="w-full p-2 border rounded-xl"></select></label>
+   <label>Frequency<select id="recurringFrequency" class="w-full p-2 border rounded-xl"><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="annual">Annual</option></select></label>
+   <label>First scheduled date<input id="recurringStart" type="date" required class="w-full p-2 border rounded-xl"></label>
+   <label>Payment terms (days)<input id="recurringTerms" type="number" min="0" max="365" step="1" value="30" required class="w-full p-2 border rounded-xl"></label>
+   <button class="p-2 rounded-xl bg-brand-600 text-white" type="submit">Create recurring template</button>
+  </form>
+  <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr><th>Template / customer</th><th>Frequency</th><th>Next scheduled date</th><th>Status</th><th>Actions</th></tr></thead><tbody id="recurringRows"></tbody></table></div>
+ </div>
+ <div class="glass-panel p-5 rounded-2xl space-y-4">
+  <h3 class="text-lg font-bold">Overdue payment dashboard</h3>
+  <p id="overdueSummary" role="status"></p>
+  <p id="missingDueDates"></p>
+  <form onsubmit="EvergreenAutomationUI.setDue(event)" class="flex flex-wrap gap-3 items-end">
+   <label>Invoice<select id="dueInvoice" onchange="EvergreenAutomationUI.selectDue()" required class="block p-2 border rounded-xl"></select></label>
+   <label>Due date<input id="dueDate" type="date" required class="block p-2 border rounded-xl"></label>
+   <button type="submit" class="p-2 rounded-xl bg-brand-600 text-white">Save invoice due date</button>
+  </form>
+  <p>Due dates affect payment follow-up only. Older invoices without an explicit due date are excluded until you set one.</p>
+  <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr><th>Invoice</th><th>Customer</th><th>Due date</th><th>Outstanding</th><th>Days overdue</th><th>Reminder</th></tr></thead><tbody id="overdueRows"></tbody></table></div>
+ </div>
+</section>
+<div id="recurringReviewModal" role="dialog" aria-modal="true" aria-labelledby="recurringReviewTitle" class="fixed inset-0 z-50 hidden bg-slate-900/60 p-4 overflow-y-auto">
+ <div class="glass-panel bg-white dark:bg-slate-800 rounded-2xl max-w-xl mx-auto my-8 p-5 space-y-4">
+  <h3 id="recurringReviewTitle" class="text-lg font-bold">Review scheduled invoice</h3>
+  <div id="recurringReviewContent" class="space-y-2"></div>
+  <p>This records a new unpaid sales invoice and its balanced journal. No payment is recorded. Review the customer, date, VAT and amounts before confirming.</p>
+  <button id="recurringGenerate" type="button" onclick="EvergreenAutomationUI.generate()" class="p-3 rounded-xl bg-brand-600 text-white">Generate reviewed invoice</button>
+  <button type="button" onclick="closeModal('recurringReviewModal')" class="p-3">Cancel</button>
+ </div>
+</div>
+<div id="paymentReminderModal" role="dialog" aria-modal="true" aria-labelledby="paymentReminderTitle" class="fixed inset-0 z-50 hidden bg-slate-900/60 p-4 overflow-y-auto">
+ <div class="glass-panel bg-white dark:bg-slate-800 rounded-2xl max-w-xl mx-auto my-8 p-5 space-y-4">
+  <h3 id="paymentReminderTitle" class="text-lg font-bold">Payment reminder draft</h3>
+  <label class="block">Message<textarea id="paymentReminderText" rows="10" maxlength="10000" class="w-full p-3 border rounded-xl"></textarea></label>
+  <p>Edit and copy this message, then send it yourself using your email or messaging app. Evergreen does not send messages. Saved drafts may need updating after further payments.</p>
+  <button type="button" onclick="EvergreenAutomationUI.saveReminder()" class="p-3 rounded-xl bg-brand-600 text-white">Save reminder draft</button>
+  <button type="button" onclick="EvergreenAutomationUI.copyReminder()" class="p-3 border rounded-xl">Copy reminder</button>
+  <button type="button" onclick="EvergreenAutomationUI.resetReminder()" class="p-3 border rounded-xl">Refresh from current balance</button>
+  <button type="button" onclick="closeModal('paymentReminderModal')" class="p-3">Close</button>
+ </div>
+</div>
+
             <section id="tab-sales" class="tab-content hidden space-y-6">
                 <!-- Top Toolbar -->
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1165,6 +1218,7 @@
                     </div>
                 </div>
 
+                <label class="block">Due date (optional)<input id="invDueDate" type="date" class="block w-full p-2.5 border rounded-xl"></label>
                 <!-- Line Items Table -->
                 <div class="space-y-2">
                     <div class="flex justify-between items-center">
@@ -1714,8 +1768,9 @@
  target.classList.remove('hidden');
  const button=document.getElementById('tabBtn-'+tabId);
  if(button) {button.classList.add('active-tab');button.setAttribute('aria-current','page');}
- const titles={dashboard:'Dashboard',sales:'Sales & Credit Notes',purchases:'Purchases & Debit Notes',contacts:'Customers & Suppliers',expenses:'Expenses & Receipts',cash:'Cash on Hand',bank:'Bank Reconciliation',mtd:'MTD VAT',tax:'UK Tax & Payroll',reports:'Reports',settingsTab:'Settings & Audit'};
+ const titles={automation:'Business Automation',dashboard:'Dashboard',sales:'Sales & Credit Notes',purchases:'Purchases & Debit Notes',contacts:'Customers & Suppliers',expenses:'Expenses & Receipts',cash:'Cash on Hand',bank:'Bank Reconciliation',mtd:'MTD VAT',tax:'UK Tax & Payroll',reports:'Reports',settingsTab:'Settings & Audit'};
  document.getElementById('workspaceSectionTitle').textContent=titles[tabId] || 'Workspace';
+ if (tabId==='automation') EvergreenAutomationUI.render();
  if (tabId==='dashboard') renderDashboard();
  if (tabId==='contacts') renderContacts();
  if (tabId==='settingsTab') {renderCompanyProfile();renderDataHealth();}
@@ -1857,7 +1912,7 @@
                     <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${inv.type === 'Credit Note' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : 'bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300'}">${inv.type}</span></td>
                     <td class="p-4 font-mono font-bold">${inv.invNo}</td>
                     <td class="p-4 font-semibold text-slate-800 dark:text-slate-200">${inv.customer}</td>
-                    <td class="p-4 text-slate-500">${inv.date}</td>
+                    <td class="p-4 text-slate-500">${escapeHtml(inv.date)}${inv.dueDate ? '<br>Due: '+escapeHtml(inv.dueDate) : ''}</td>
                     <td class="p-4 text-right font-mono">£${inv.totalNet.toFixed(2)}</td>
                     <td class="p-4 text-right font-mono">£${inv.totalVat.toFixed(2)}</td>
                     <td class="p-4 text-right font-mono font-bold">£${inv.totalGross.toFixed(2)}</td>
@@ -2090,17 +2145,13 @@ async function saveCompanyProfile() {
   });
   if (!items.length) throw Error('Add an invoice line.');
   const money=value=>Math.round(value*100)/100;
-  let net=0,vat=0;
-  items.forEach(item=>{const amount=money(item.qty*item.price);net=money(net+amount);vat=money(vat+money(amount*(item.vatRate==='EXEMPT' ? 0 : Number(item.vatRate))/100));});
   const reference=document.getElementById('invNumber').value.trim();
-  if (!reference || appState.invoices.some(item=>item.id===reference || item.invNo===reference)) throw Error('Use a unique document number.');
-  const doc={id:reference,invNo:reference,type:docType,customer:document.getElementById('invCustomer').value.trim(),date:document.getElementById('invDate').value,items,totalNet:net,totalVat:vat,totalGross:money(net+vat),status:docType==='Credit Note' ? 'Returned' : 'Unpaid'};
+  const dueDate=docType==='Invoice' ? document.getElementById('invDueDate').value : '';
+  if(dueDate) {EvergreenAutomation.date(dueDate);if(dueDate<document.getElementById('invDate').value)throw Error('Due date cannot precede the invoice date.');}
+  const doc=EvergreenInvoices.create({reference,type:docType,customer:document.getElementById('invCustomer').value.trim(),date:document.getElementById('invDate').value,dueDate,items});
   const received=docType==='Invoice' ? money(Number(document.getElementById('invInitialPaymentAmount').value)||0) : 0;
   if (!Number.isFinite(received) || received<0 || received>doc.totalGross) throw Error('Payment received must be between zero and the invoice total.');
-  const journal=EvergreenLedger.fromDocument(docType,doc);
-  appState.invoices.unshift(doc);
-  if (window.EvergreenCustomers) {const customer=EvergreenCustomers.ensureCustomer(appState,doc.customer);if(customer)doc.customerId=customer.id;}
-  (appState.ledgerEntries ||= []).push(journal);
+  EvergreenInvoices.post(appState,doc);
   if (received>0) EvergreenPayments.recordPayment(appState,{documentType:'Invoice',documentId:doc.id,amount:received,date:document.getElementById('invInitialPaymentDate').value || doc.date,method:document.getElementById('invInitialPaymentMethod').value,reference:doc.invNo});
   await saveState();closeModal('invoiceModal');renderSalesTable();renderDashboard();
   showToast(docType+' saved successfully.');
@@ -3115,6 +3166,7 @@ async function removeSelectedBankRows() {
                 <button onclick="closeModal('mobileSectionsModal')" aria-label="Close section menu" class="p-3">Close</button>
             </div>
             <div class="grid grid-cols-1 gap-3">
+                <button onclick="closeModal('mobileSectionsModal'); switchTab('automation')" class="text-left px-4 py-3 rounded-xl bg-brand-50">Business Automation</button>
                 <button onclick="closeModal('mobileSectionsModal'); switchTab('expenses'); window.scrollTo({top:0,behavior:'auto'})" class="text-left px-4 py-3 rounded-xl bg-brand-50 dark:bg-brand-900 text-brand-700 dark:text-slate-100 font-semibold">Expenses & Receipts</button>
                 <button onclick="closeModal('mobileSectionsModal'); switchTab('purchases'); window.scrollTo({top:0,behavior:'auto'})" class="text-left px-4 py-3 rounded-xl bg-brand-50 dark:bg-brand-900 text-brand-700 dark:text-slate-100 font-semibold">Purchases</button>
                 <button onclick="closeModal('mobileSectionsModal'); switchTab('contacts'); window.scrollTo({top:0,behavior:'auto'})" class="text-left px-4 py-3 rounded-xl bg-brand-50 dark:bg-brand-900 text-brand-700 dark:text-slate-100 font-semibold">Customers & Suppliers</button>
@@ -3150,6 +3202,9 @@ async function removeSelectedBankRows() {
     <script src="js/ui/reports.js"></script>
 <script src="js/core/cash.js?v=cash-ledger-1"></script>
 <script src="js/ui/cash.js?v=cash-ledger-1"></script>
+    <script src="js/core/invoices.js?v=automation-1"></script>
+<script src="js/core/automation.js?v=automation-1"></script>
+<script src="js/ui/automation.js?v=automation-1"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

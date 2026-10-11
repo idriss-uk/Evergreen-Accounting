@@ -1,0 +1,30 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),crypto=require('node:crypto');
+const context={window:{crypto},crypto,TextEncoder};
+for(const name of ['state','ledger','customers','payments','invoices','automation','reports','integrity'])vm.runInNewContext(fs.readFileSync('js/core/'+name+'.js','utf8'),context);
+const {EvergreenAutomation:a,EvergreenInvoices:i,EvergreenState:s,EvergreenPayments:p,EvergreenReports:r,EvergreenIntegrity:integrity}=context.window;
+const state=s.createEmptyState();state.expenses.push({id:'receipt',merchant:'Existing',attachment:'data:image/png;base64,KEEP',netAmount:5,vatAmount:1,grossAmount:6});
+const source=i.create({reference:'SOURCE',customer:'Customer',date:'2024-01-01',dueDate:'2024-01-31',items:[{desc:'Service',qty:1,price:100,vatRate:'20'},{desc:'Exempt',qty:1,price:10,vatRate:'EXEMPT'}]});i.post(state,source);
+p.recordPayment(state,{documentType:'Invoice',documentId:'SOURCE',amount:30,date:'2024-01-10'});
+const financial=()=>JSON.stringify({invoices:state.invoices,payments:state.payments,ledger:state.ledgerEntries,expenses:state.expenses});
+const before=financial();
+const template=a.createTemplate(state,{sourceId:'SOURCE',name:'Retainer',frequency:'monthly',startDate:'2024-01-31',termsDays:30});assert.equal(financial(),before);
+assert.notEqual(template.items,source.items);
+assert.notEqual(template.items[0],source.items[0]);
+assert.equal(a.scheduled(template,1),'2024-02-29');assert.equal(a.scheduled(template,2),'2024-03-31');
+assert.equal(a.scheduled({...template,frequency:'weekly'},1),'2024-02-07');assert.equal(a.scheduled({...template,frequency:'quarterly'},1),'2024-04-30');assert.equal(a.scheduled({...template,frequency:'annual',startDate:'2024-02-29'},1),'2025-02-28');assert.equal(a.scheduled({...template,frequency:'annual',startDate:'2024-02-29'},4),'2028-02-29');
+assert.throws(()=>a.date('2024-02-30'));assert.throws(()=>a.createTemplate(state,{sourceId:'SOURCE',name:'Bad',frequency:'daily',startDate:'2024-01-01',termsDays:0}));assert.equal(financial(),before);
+assert.throws(()=>a.preview(state,template.id,'2024-01-30'));const preview=a.preview(state,template.id,'2024-01-31');assert.equal(preview.totalGross,130);assert.equal(preview.dueDate,'2024-03-01');assert.equal(financial(),before);
+assert.throws(()=>a.generate(state,template.id,'2024-02-29','2024-03-01'));assert.equal(financial(),before);
+const generated=a.generate(state,template.id,preview.date,'2024-01-31');assert.equal(generated.status,'Unpaid');assert.equal(state.payments.length,1);assert.equal(state.ledgerEntries.length,3);assert.equal(a.scheduled(template),'2024-02-29');assert.equal(JSON.stringify(state.invoices.find(doc=>doc.id==='SOURCE')),JSON.stringify(source));
+const posted=financial();assert.throws(()=>a.generate(state,template.id,preview.date,'2024-03-01'));assert.equal(financial(),posted);
+// Duplicate history survives document deletion and prevents a schedule reset from reposting it.
+const deleted=s.normalize(state);deleted.invoices=deleted.invoices.filter(doc=>doc.id!==generated.id);deleted.recurringTemplates[0].cycle=0;assert.throws(()=>a.preview(deleted,template.id,'2024-03-01'));
+const collision=s.normalize(state);collision.recurringTemplates[0].cycle=0;collision.recurringTemplates[0].generated=[];assert.throws(()=>a.preview(collision,template.id,'2024-03-01'));
+template.active=false;assert.throws(()=>a.preview(state,template.id,'2024-03-01'));template.active=true;
+const rows=a.overdue(state,'2024-02-10');assert.equal(rows.length,1);assert.equal(rows[0].outstanding,100);assert.equal(rows[0].daysOverdue,10);assert.equal(a.overdue(state,'2024-01-31').length,0);assert.match(a.reminder(state,'SOURCE','2024-02-10'),/£100.00/);assert.equal(financial(),posted);
+p.recordPayment(state,{documentType:'Invoice',documentId:'SOURCE',amount:100,date:'2024-02-10'});assert.equal(a.overdue(state,'2024-02-11').length,0);
+const tb=r.trialBalance(state);assert.equal(tb.totalDebit,tb.totalCredit);assert.equal(state.expenses[0].attachment,'data:image/png;base64,KEEP');
+// Same line rounding as the established manual formula, including fractional quantities.
+const decimals=i.create({reference:'ROUND',customer:'C',date:'2024-01-01',items:[{desc:'A',qty:3,price:0.335,vatRate:'20'},{desc:'B',qty:1.5,price:10.01,vatRate:'5'}]});assert.equal(decimals.totalNet,16.03);assert.equal(decimals.totalVat,0.95);assert.equal(decimals.totalGross,16.98);
+(async()=>{state.paymentReminders=[{id:'SOURCE',message:'Edited reminder'}];const backup=await integrity.createBackup(state);const restored=await integrity.readBackup(JSON.stringify(backup));assert.equal(JSON.stringify(restored.state.recurringTemplates),JSON.stringify(state.recurringTemplates));assert.equal(restored.state.paymentReminders[0].message,'Edited reminder');assert.equal(restored.state.expenses[0].attachment,'data:image/png;base64,KEEP');console.log('Recurring schedules, duplicate protection, shared invoice engine, overdue balances and complete backup checks passed.');})().catch(error=>{console.error(error);process.exitCode=1;});
