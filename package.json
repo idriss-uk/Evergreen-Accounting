@@ -11,6 +11,6 @@
   "scripts": {
     "build:assets": "node scripts/build-assets.cjs",
     "test": "node scripts/run-tests.cjs",
-    "test:browser": "node tests/offline-browser.test.cjs"
+    "test:browser": "node scripts/run-browser-tests.cjs"
   }
 }
