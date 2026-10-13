@@ -1,30 +1,18 @@
 # Evergreen Accounting — AI Assistant Roadmap
 
-Status: **planned, not enabled**. The receipt image OCR workflow uses local Tesseract.js and rule-based field extraction; it does not call an AI model or send receipt contents to an external provider.
+V5.7 provides a **local, rule-based, read-only Business Assistant**. It is available in AI Assistant and makes no generative AI requests. See [supported questions, calculation sources and limitations](business-assistant-v5.7.md). Local receipt OCR remains a separate workflow.
 
-## Proposed capabilities
+## Future secure generative provider
 
-1. **Receipt review assistant** — explain OCR ambiguities and suggest merchant/category/VAT handling, without silently editing records.
-2. **Bookkeeping assistant** — answer questions about balances and reports using the current local ledger, with source-document references and visible calculations.
-3. **Banking assistant** — explain potential reconciliations and suspicious duplicates; require explicit confirmation before matching or posting.
-4. **Business insights** — cash-flow trends, aged debtors, expense anomalies, and forecasts, clearly distinguished from statutory tax calculations.
-5. **UK compliance guidance** — plain-language explanations with links to authoritative HMRC guidance where available; never imply certified HMRC compliance or make filings automatically.
+Keep financial access, deterministic calculations, interpretation, response formatting and UI separate. Preserve the local engine as the default/offline provider. A later provider should consume a versioned request/response contract (`question`, a minimal validated financial summary, source IDs, period, formatted answer and follow-ups). Do not give it `appState`, receipt images or write functions. `EvergreenAssistant.answer` is the current local adapter boundary; there is intentionally no remote transport or configurable browser endpoint today.
 
-## Privacy, permissions, and architecture
+Before enabling a provider:
 
-- **Local-first default:** all accounting data stays on the user's device unless they explicitly enable a provider-backed assistant.
-- **Secure proxy required:** never embed an AI provider secret/API key in HTML, PWA JavaScript, Android APK or the public repository. Use an authenticated backend with scoped credentials and rate limits.
-- **User consent for cloud processing:** show which fields/document excerpts will be transmitted before any external AI request. Make the feature opt-in with controls to clear AI conversation history.
-- **Minimum necessary data:** prefer redacted transaction summaries over uploading receipt images or full ledgers.
-- **Review-before-posting:** AI responses are proposals, never automatic ledger edits, HMRC submissions, customer communications or bank transfers.
-- **Provenance:** identify model-generated suggestions, retain user-approved changes, and keep a transaction audit trail.
-- **Testing:** adversarial-input tests, numerical reconciliation checks, permissions tests, VAT edge cases, and usability tests with a non-technical user.
+1. Deploy an authenticated HTTPS backend that keeps provider credentials in a server-side secret store. Use scoped authorization, rate limits and request-size limits. Never put keys in HTML, PWA JavaScript, an Android APK or the public repository.
+2. Obtain explicit opt-in consent for each data-sharing scope. Show the destination, fields and retention policy before sending. Minimise/redact customer identities, omit receipt contents by default and allow immediate withdrawal. Local queries remain available without consent.
+3. Keep deterministic accounting calculations authoritative. A model may interpret questions and explain precomputed figures; it must not invent totals or recompute tax liabilities. Validate response schema, figures, currency, periods and source references against the local result. Reject inconsistent output and fall back to the local engine.
+4. Treat question text, document descriptions, receipts and names as untrusted content. Separate them from system policy. Expose an allowlisted read-only query tool contract, with no mutation, email, payment, HMRC, arbitrary URL or shell capabilities. Enforce read-only permissions on the server as well as the browser.
+5. Return plain structured text; render it with safe DOM APIs. Do not execute provider instructions or arbitrary markup. Handle timeouts, quota failures, revoked consent and offline fallback. Do not permanently store conversations by default; define deletion and retention controls for any later server history.
+6. Add numerical reconciliation, adversarial prompt/content, authorization, consent-revocation, redaction, no-write, no-unapproved-egress, retention and fallback tests before release. Review privacy terms and UK data handling with the intended provider.
 
-## Suggested sequence
-
-1. Complete local receipt OCR and review flow, then browser/mobile acceptance testing.
-2. Implement an assistant panel backed by a read-only local accounting context service.
-3. Add an optional secure cloud AI provider behind explicit consent, with a real backend.
-4. Add controlled actions with confirmation, audit and rollback safeguards.
-
-Do not advertise the AI assistant as available until the backend and permission model are deployed and verified.
+Forecasts, tax advice and actions are outside Phase 1. Any later action workflow needs a separate permission model, explicit review, audit, rollback and new tests; a generative integration must not silently gain transaction-posting rights.

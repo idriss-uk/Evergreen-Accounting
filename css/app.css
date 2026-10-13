@@ -311,3 +311,60 @@ body {
 .dark #tab-automation input, .dark #tab-automation select, .dark #paymentReminderText {
   background: #0f172a; border-color: #334155;
 }
+
+/* Local Business Assistant: all record text is rendered with textContent. */
+.assistant-workspace { color: #26362a; max-width: 1200px; margin: 0 auto; }
+.assistant-heading, .assistant-chat-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; }
+.assistant-heading h2 { font-size:28px; font-weight:700; letter-spacing:-.5px; margin:5px 0; }
+.assistant-heading > div > p:last-child { font-size:14px; color:#60705e; }
+.assistant-eyebrow { font-size:10px; letter-spacing:1.8px; font-weight:700; color:#556b2f; }
+.assistant-badge { border:1px solid #cdd8b9; border-radius:24px; padding:8px 12px; font-size:12px; background:#e7ecd9; color:#3f5223; }
+.assistant-insights, .assistant-chat { margin-top:24px; border:1px solid #dce3d5; border-radius:18px; padding:24px; background:#fff; box-shadow:0 6px 24px rgba(36,48,32,.04); }
+.assistant-workspace h3 { font-size:16px; font-weight:700; }
+.assistant-period { font-size:12px; color:#61705c; margin:6px 0 16px; }
+.assistant-card-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.assistant-card { padding:16px; background:#f5f7f0; border:1px solid #e0e6d7; border-radius:12px; }
+.assistant-card span { font-size:12px; color:#5d6e54; display:block; }
+.assistant-card strong { display:block; font-size:24px; margin-top:8px; font-weight:700; overflow-wrap:anywhere; }
+.assistant-note { font-size:12px; color:#60705e; line-height:1.6; margin:12px 0; overflow-wrap:anywhere; }
+.assistant-chat-heading button, .assistant-suggestion { font-size:12px; border:1px solid #d7dfcc; border-radius:10px; padding:10px 12px; min-height:44px; background:#f5f7f0; }
+.assistant-chat-heading button:hover, .assistant-suggestion:hover { background:#e7ecd9; }
+.assistant-suggestions { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.assistant-messages { max-height:620px; overflow-y:auto; overscroll-behavior:contain; padding:4px; }
+.assistant-message { max-width:92%; padding:18px; border-radius:14px; margin:16px 0; background:#f5f7f0; border:1px solid #e0e6d7; overflow-wrap:anywhere; font-size:14px; line-height:1.65; }
+.assistant-message h3 { font-size:13px; margin-bottom:6px; }
+.assistant-message p + p { margin-top:10px; }
+.assistant-user { margin-left:auto; background:#e7ecd9; }
+.assistant-error { border-color:#b94a48; }
+.assistant-figures { margin:12px 0; }
+.assistant-figures > div { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px 12px; padding:10px 0; border-bottom:1px solid #dce3d5; }
+.assistant-figures dd { font-weight:700; text-align:right; }
+.assistant-figures small { grid-column:1/-1; font-size:12px; color:#61705c; }
+.assistant-warning { border-left:3px solid #b58b35; padding-left:12px; font-size:12px; }
+.assistant-message summary { cursor:pointer; min-height:44px; padding-top:10px; font-weight:600; }
+.assistant-message ul { font-size:12px; list-style:disc; padding-left:18px; }
+#assistantForm { margin-top:20px; }
+#assistantForm label { display:block; font-size:13px; font-weight:600; margin-bottom:8px; }
+.assistant-composer { display:flex; align-items:stretch; gap:10px; }
+#assistantQuestion { flex:1; min-width:0; width:100%; border:1px solid #aebd9a; background:#fff; color:inherit; padding:12px; border-radius:12px; font-size:16px; resize:vertical; }
+#assistantSend { border-radius:12px; background:#556b2f; color:#fff; padding:12px 18px; font-weight:600; min-height:48px; }
+#assistantSend:disabled { opacity:.6; cursor:wait; }
+.assistant-workspace button:focus-visible, #assistantQuestion:focus-visible { outline:3px solid #718355; outline-offset:3px; }
+.dark .assistant-workspace { color:#e5ecd9; }
+.dark .assistant-heading > div > p:last-child, .dark .assistant-note, .dark .assistant-period, .dark .assistant-card span, .dark .assistant-figures small { color:#b5c4a9; }
+.dark .assistant-insights, .dark .assistant-chat { background:#1c291d; border-color:#40543a; }
+.dark .assistant-card, .dark .assistant-message, .dark .assistant-suggestion, .dark .assistant-chat-heading button, .dark #assistantQuestion { background:#243020; border-color:#40543a; color:#e5ecd9; }
+.dark .assistant-user, .dark .assistant-badge { background:#33452b; color:#e5ecd9; border-color:#556b2f; }
+.dark .assistant-figures > div { border-color:#40543a; }
+.dark .assistant-eyebrow { color:#c3d4a9; }
+@media (max-width:767px) {
+ .assistant-insights, .assistant-chat { padding:16px; margin-top:16px; }
+ .assistant-card-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+ .assistant-card { padding:12px; }
+ .assistant-card strong { font-size:20px; }
+ .assistant-composer { flex-direction:column; }
+ .assistant-message { max-width:100%; padding:14px; }
+ .assistant-messages { max-height:55dvh; }
+ .assistant-figures > div { grid-template-columns:minmax(0,1fr); }
+ .assistant-figures dd { text-align:left; }
+}
