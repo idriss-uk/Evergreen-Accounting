@@ -112,7 +112,7 @@ async function run() {
         amount: 40,
       });
       const exp = EvergreenReceipts.create({
-        id: "ASSISTANT-EXP",
+        id: "EXP-2d117faf-39bc-4764-ad5a-91dade5e0053",
         merchant: "Existing receipt",
         date: start,
         netAmount: 20,
@@ -128,6 +128,22 @@ async function run() {
       stored: JSON.stringify(await EvergreenStorage.loadSnapshot()),
       local: JSON.stringify({ ...localStorage }),
     }));
+    const financialQueries = [
+      "profit this month",
+      "Compare this months profit with last month",
+      "Which customers owe me money?",
+      "largest expense categories",
+      "Show my estimated VAT position",
+      "cash balance",
+      "unreconciled banking",
+      "business summary",
+    ];
+    const reportingDate = await page.evaluate(() => EvergreenAssistant.today());
+    const financialBefore = await page.evaluate(
+      ({ queries, date }) =>
+        queries.map((q) => EvergreenAssistant.answer(appState, q, null, date)),
+      { queries: financialQueries, date: reportingDate },
+    );
     await page.locator("#tabBtn-assistant").click();
     assert.equal(
       await page.locator("#workspaceSectionTitle").textContent(),
@@ -233,6 +249,49 @@ async function run() {
       await page.locator(".assistant-reply").last().textContent(),
       /Net profit \/ loss£80.00/,
     );
+    const profitReply = page.locator(".assistant-reply").last();
+    assert.equal(
+      await profitReply.locator(".assistant-methodology").getAttribute("open"),
+      null,
+    );
+    assert.equal(
+      await profitReply.locator(".assistant-sources").getAttribute("open"),
+      null,
+    );
+    assert.equal(
+      await profitReply.evaluate(
+        (node) =>
+          node
+            .querySelector(".assistant-key-figures")
+            .compareDocumentPosition(
+              node.querySelector(".assistant-methodology"),
+            ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+      4,
+    );
+    const dockBeforeExpansion = await page
+      .locator(".assistant-input-dock")
+      .boundingBox();
+    await profitReply.locator(".assistant-methodology > summary").click();
+    assert.match(
+      await profitReply.locator(".assistant-methodology").textContent(),
+      /Accrual basis/,
+    );
+    await profitReply.locator(".assistant-sources > summary").click();
+    await profitReply.locator(".assistant-reference > summary").click();
+    assert.match(
+      await profitReply.locator(".assistant-reference code").textContent(),
+      /EXP-2d117faf-39bc-4764-ad5a-91dade5e0053/,
+    );
+    assert.equal(
+      await profitReply.locator(".assistant-reference code").isVisible(),
+      true,
+    );
+    await composerVisible();
+    assert.deepEqual(
+      await page.locator(".assistant-input-dock").boundingBox(),
+      dockBeforeExpansion,
+    );
     assert.match(await ask("And last month?"), /£0.00/);
     assert.match(await ask("Which customers owe me money?"), /£80.00/);
     assert.match(
@@ -292,6 +351,176 @@ async function run() {
       before,
       "Assistant must not save or mutate accounting data",
     );
+    fs.mkdirSync(path.join(root, "test-results"), { recursive: true });
+    // Every requested size in both themes: one scrolling pane and an anchored composer.
+    for (const [width, height] of [
+      [360, 640],
+      [390, 844],
+      [412, 915],
+      [768, 1024],
+      [1440, 900],
+    ]) {
+      await page.setViewportSize({ width, height });
+      for (const dark of [false, true]) {
+        await page.evaluate(
+          (dark) => document.documentElement.classList.toggle("dark", dark),
+          dark,
+        );
+        await ask("profit this month");
+        assert.equal(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+          true,
+        );
+        if (width < 768) {
+          assert.equal(
+            await page.locator(".assistant-mobile-privacy").isVisible(),
+            true,
+          );
+          const header = await page.locator(".assistant-heading").boundingBox();
+          assert.ok(
+            header.height <= 36,
+            "Mobile heading must remain one compact row",
+          );
+          assert.equal(
+            await page.evaluate(() => {
+              const pane = document
+                .getElementById("assistantScroll")
+                .getBoundingClientRect();
+              const values = [...document.querySelectorAll(".assistant-reply")]
+                .at(-1)
+                .querySelectorAll(".assistant-key-figures dd");
+              return [...values].every(
+                (value) => value.getBoundingClientRect().bottom <= pane.bottom,
+              );
+            }),
+            true,
+            "All three profit figures must be visible immediately on mobile",
+          );
+          assert.equal(await page.locator(".app-header").isVisible(), true);
+        } else {
+          assert.equal(
+            await page.locator(".assistant-badge").isVisible(),
+            true,
+          );
+        }
+        const input = page.locator("#assistantQuestion");
+        assert.equal(await input.evaluate((el) => el.scrollTop), 0);
+        assert.equal(
+          await input.evaluate((el) => getComputedStyle(el).overflowY),
+          "hidden",
+        );
+        assert.ok(
+          await input.evaluate(
+            (el) =>
+              parseFloat(getComputedStyle(el).paddingTop) >= 10 &&
+              parseFloat(getComputedStyle(el).lineHeight) >= 24,
+          ),
+        );
+        const placeholder = await input.evaluate((el) => ({
+          color: getComputedStyle(el, "::placeholder").color,
+          opacity: getComputedStyle(el, "::placeholder").opacity,
+        }));
+        assert.notEqual(placeholder.color, "rgba(0, 0, 0, 0)");
+        assert.equal(placeholder.opacity, "1");
+        const minimum = (await input.boundingBox()).height;
+        await input.fill("First line\nSecond line\nThird line\nFourth line");
+        assert.ok((await input.boundingBox()).height > minimum);
+        assert.equal(await input.evaluate((el) => el.scrollTop), 0);
+        await input.evaluate((el) => el.setSelectionRange(4, 4));
+        await page.keyboard.insertText("X");
+        assert.equal(
+          await input.evaluate((el) => el.selectionStart),
+          5,
+          "Auto-sizing must preserve the caret",
+        );
+        await input.fill(
+          "A long question about recorded accounts. ".repeat(20),
+        );
+        assert.ok((await input.boundingBox()).height <= 160);
+        assert.equal(
+          await input.evaluate((el) => getComputedStyle(el).overflowY),
+          "auto",
+        );
+        await composerVisible();
+        await input.evaluate((el) => {
+          el.scrollTop = 999;
+        });
+        await page.locator("#assistantSend").click();
+        await page.waitForFunction(
+          () => !document.getElementById("assistantSend").disabled,
+        );
+        assert.equal(await input.inputValue(), "");
+        assert.equal(await input.evaluate((el) => el.scrollTop), 0);
+        assert.equal((await input.boundingBox()).height, minimum);
+        await input.fill("More lines\n".repeat(30));
+        await page.locator("#assistantClear").click();
+        assert.equal(await input.evaluate((el) => el.scrollTop), 0);
+        assert.equal(
+          await input.evaluate((el) => getComputedStyle(el).overflowY),
+          "hidden",
+        );
+        await ask("profit this month");
+        const answer = page.locator(".assistant-reply").last();
+        await answer.locator(".assistant-methodology > summary").click();
+        await answer.locator(".assistant-sources > summary").click();
+        await answer.locator(".assistant-reference > summary").click();
+        assert.equal(
+          await answer.locator(".assistant-reference code").isVisible(),
+          true,
+        );
+        assert.equal(
+          await page
+            .locator("#assistantScroll")
+            .evaluate((el) => el.scrollWidth <= el.clientWidth),
+          true,
+        );
+        const dock = await page.locator(".assistant-input-dock").boundingBox();
+        await page.locator("#assistantScroll").hover();
+        await page.mouse.wheel(0, 400);
+        await composerVisible();
+        assert.deepEqual(
+          await page.locator(".assistant-input-dock").boundingBox(),
+          dock,
+        );
+        await ask("profit this month");
+        await page.screenshot({
+          path: path.join(
+            root,
+            "test-results",
+            `assistant-v572-${width}x${height}-${dark ? "dark" : "light"}.png`,
+          ),
+        });
+      }
+    }
+    await page.evaluate(() =>
+      document.documentElement.classList.remove("dark"),
+    );
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await ask("largest expense categories");
+    const categoryReply = page.locator(".assistant-reply").last();
+    assert.match(
+      await categoryReply.locator(".assistant-reference summary").textContent(),
+      /EXP-2d117faf…0053/,
+    );
+    await categoryReply.locator(".assistant-reference summary").focus();
+    await page.keyboard.press("Enter");
+    assert.equal(
+      await categoryReply.locator(".assistant-reference code").textContent(),
+      "EXP-2d117faf-39bc-4764-ad5a-91dade5e0053",
+    );
+    assert.equal(
+      await categoryReply.locator(".assistant-reference code").isVisible(),
+      true,
+    );
+    assert.equal(await page.locator("#assistantMessages img").count(), 0);
+    const preserved = await page.evaluate(async () => ({
+      state: JSON.stringify(appState),
+      stored: JSON.stringify(await EvergreenStorage.loadSnapshot()),
+    }));
+    assert.equal(preserved.state, before.state);
+    assert.equal(preserved.stored, before.stored);
     await page.locator("#assistantClear").click();
     assert.equal(await page.locator("#assistantMessages article").count(), 1);
     assert.equal(
@@ -366,6 +595,17 @@ async function run() {
     });
     await composerVisible();
     assert.equal(await page.locator(".mobile-bottom-nav").isVisible(), false);
+    assert.equal(
+      await page.locator(".app-header").isVisible(),
+      true,
+      "Keep app branding with the keyboard open",
+    );
+    await page
+      .locator("#assistantQuestion")
+      .fill(
+        "First line\nSecond line\nThird line\nFourth line\nFifth line\nSixth line",
+      );
+    await composerVisible();
     await ask("profit this month");
     await page.screenshot({
       path: path.join(root, "test-results/assistant-mobile-keyboard.png"),
@@ -502,7 +742,23 @@ async function run() {
       "assistantQuestion",
       "Suggested questions should not automatically open the mobile keyboard",
     );
+    await touchPage.locator("#assistantQuestion").focus();
+    await touchPage.keyboard.press("Tab");
+    assert.equal(
+      await touchPage.evaluate(() => document.activeElement.id),
+      "assistantSend",
+    );
     await android.close();
+    const financialAfter = await page.evaluate(
+      ({ queries, date }) =>
+        queries.map((q) => EvergreenAssistant.answer(appState, q, null, date)),
+      { queries: financialQueries, date: reportingDate },
+    );
+    assert.deepEqual(
+      financialAfter,
+      financialBefore,
+      "All complete financial responses must remain identical after UI use",
+    );
     assert.deepEqual(errors, []);
     assert.deepEqual(
       requests.filter(
@@ -514,7 +770,7 @@ async function run() {
       [],
     );
     console.log(
-      "PASS: anchored composer, deduplicated expandable quality alerts, new-answer scrolling, short desktop windows and emulated Android keyboard viewport resizing/panning; local assistant financial answers, insights, partial payments, context, unsupported/write requests, XSS protection, no requests or data writes, source errors, clearing, session-only history, offline reload, receipt preservation, mobile navigation/layout and dark mode.",
+      "PASS: V5.7.2 compact mobile header, auto-growing input and scroll reset, figures before expandable methodology, full/short safe references, all five requested sizes in both themes and numerically identical responses; anchored composer, deduplicated expandable quality alerts, new-answer scrolling, short desktop windows and emulated Android keyboard viewport resizing/panning; local assistant financial answers, insights, partial payments, context, unsupported/write requests, XSS protection, no requests or data writes, source errors, clearing, session-only history, offline reload, receipt preservation, mobile navigation/layout and dark mode.",
     );
   } catch (error) {
     if (page) {
