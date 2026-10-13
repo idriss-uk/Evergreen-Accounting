@@ -2,7 +2,10 @@
   "use strict";
   let context = null,
     generation = 0,
-    bound = false;
+    bound = false,
+    layoutFrame = 0,
+    fullViewportHeight = 0,
+    layoutWidth = 0;
   const welcome =
     "Welcome to Evergreen Business Assistant. I can help you understand your invoices, expenses, customers, payments and financial reports. What would you like to know about your business?";
   const suggestions = [
@@ -40,6 +43,83 @@
     get("assistantMessages").append(article);
     return article;
   }
+  function updateAlerts(warnings) {
+    const alerts = [...new Set(warnings)];
+    get("assistantAlertsSummary").textContent =
+      "Data Quality Alerts (" + alerts.length + ")";
+    get("assistantAlertsList").replaceChildren(
+      ...alerts.map((warning) => element("li", warning, "assistant-warning")),
+    );
+    get("assistantAlerts").hidden = alerts.length === 0;
+  }
+  function showMessage(node) {
+    // Scroll only the workspace, to the beginning of an answer rather than its end.
+    const scroll = get("assistantScroll");
+    scroll.scrollTo({
+      top:
+        scroll.scrollTop +
+        node.getBoundingClientRect().top -
+        scroll.getBoundingClientRect().top -
+        12,
+      behavior: "instant",
+    });
+  }
+  function updateLayout() {
+    layoutFrame = 0;
+    if (!document.body.classList.contains("assistant-active")) return;
+    const viewport = window.visualViewport;
+    const height = viewport?.height || window.innerHeight;
+    const offset = viewport?.offsetTop || 0;
+    const narrow = window.matchMedia("(max-width: 767px)").matches;
+    const focused = document.activeElement === get("assistantQuestion");
+    if (layoutWidth !== window.innerWidth) {
+      fullViewportHeight = height;
+      layoutWidth = window.innerWidth;
+    }
+    if (
+      !fullViewportHeight ||
+      (!focused && !document.body.classList.contains("assistant-keyboard-open"))
+    )
+      fullViewportHeight = height;
+    const keyboard =
+      narrow &&
+      (height < window.innerHeight * 0.75 ||
+        height < fullViewportHeight * 0.75);
+    document.body.classList.toggle("assistant-keyboard-open", keyboard);
+    const nav = document.querySelector(".mobile-bottom-nav");
+    const navHeight = nav?.getBoundingClientRect().height || 0;
+    const main = document.querySelector(".app-main");
+    const bounds = main.getBoundingClientRect();
+    const padding = getComputedStyle(main);
+    const availableWidth =
+      bounds.width -
+      parseFloat(padding.paddingLeft) -
+      parseFloat(padding.paddingRight);
+    const width = Math.min(1200, availableWidth);
+    const top = Math.max(
+      offset + 8,
+      document.querySelector(".app-header").getBoundingClientRect().bottom +
+        (keyboard || height < 550 ? 8 : parseFloat(padding.paddingTop)),
+    );
+    const workspace = get("tab-assistant");
+    workspace.style.setProperty("--assistant-top", top + "px");
+    workspace.style.setProperty(
+      "--assistant-left",
+      bounds.left +
+        parseFloat(padding.paddingLeft) +
+        (availableWidth - width) / 2 +
+        "px",
+    );
+    workspace.style.setProperty("--assistant-width", width + "px");
+    workspace.style.setProperty(
+      "--assistant-height",
+      Math.max(0, offset + height - top - navHeight - 8) + "px",
+    );
+    workspace.classList.toggle("assistant-compact", height < 550 || keyboard);
+  }
+  function scheduleLayout() {
+    if (!layoutFrame) layoutFrame = requestAnimationFrame(updateLayout);
+  }
   function renderAnswer(answer) {
     const node = message("reply", answer.title);
     if (answer.period)
@@ -74,12 +154,11 @@
         );
       node.append(details);
     }
-    for (const warning of answer.warnings)
-      node.append(element("p", warning, "assistant-warning"));
+    if (answer.context) updateAlerts(answer.warnings);
     const choices = element("div", "", "assistant-suggestions");
     addSuggestions(choices, answer.followups);
     node.append(choices);
-    node.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    showMessage(node);
   }
   function clear() {
     generation++;
@@ -92,13 +171,16 @@
     get("assistantStatus").textContent = "";
     get("assistantSend").disabled = false;
     get("assistantMessages").setAttribute("aria-busy", "false");
+    get("assistantScroll").scrollTop = 0;
   }
   async function submit() {
     const input = get("assistantQuestion"),
       question = input.value.trim();
     if (!question || get("assistantSend").disabled) return;
     const token = ++generation;
-    message("user", "").append(element("p", question));
+    const userMessage = message("user", "");
+    userMessage.append(element("p", question));
+    showMessage(userMessage);
     input.value = "";
     get("assistantSend").disabled = true;
     get("assistantStatus").textContent = "Checking your local records…";
@@ -120,16 +202,18 @@
       renderAnswer(answer);
       get("assistantStatus").textContent = "Answered on this device.";
     } catch (error) {
-      message("error", "Unable to verify figures").append(
-        element("p", error.message),
-      );
+      const errorMessage = message("error", "Unable to verify figures");
+      errorMessage.append(element("p", error.message));
+      showMessage(errorMessage);
       get("assistantStatus").textContent =
         "Could not complete this question. Review the message and try again.";
     } finally {
       if (token === generation) {
         get("assistantSend").disabled = false;
         get("assistantMessages").setAttribute("aria-busy", "false");
-        input.focus();
+        // Keep desktop typing convenient without reopening the Android keyboard.
+        if (window.matchMedia("(pointer: fine)").matches)
+          input.focus({ preventScroll: true });
       }
     }
   }
@@ -140,10 +224,20 @@
         submit();
       });
       get("assistantClear").addEventListener("click", clear);
+      get("assistantSend").addEventListener("pointerdown", (event) => {
+        if (document.activeElement === get("assistantQuestion"))
+          event.preventDefault();
+      });
+      window.addEventListener("resize", scheduleLayout);
+      window.visualViewport?.addEventListener("resize", scheduleLayout);
+      window.visualViewport?.addEventListener("scroll", scheduleLayout);
+      get("assistantQuestion").addEventListener("focus", scheduleLayout);
+      get("assistantQuestion").addEventListener("blur", scheduleLayout);
       addSuggestions(get("assistantSuggestions"), suggestions);
       clear();
       bound = true;
     }
+    updateLayout();
     const cards = get("assistantInsights");
     cards.replaceChildren();
     try {
@@ -175,8 +269,8 @@
         cards.append(card);
       }
       get("assistantInsightsNote").textContent =
-        answer.warnings.join(" ") ||
         "Revenue and expenses exclude VAT. Balances include VAT and dated partial payments. Overdue counts require a due date.";
+      updateAlerts(answer.warnings);
     } catch (error) {
       get("assistantInsightsPeriod").textContent = "Figures unavailable";
       get("assistantInsightsNote").textContent = error.message;

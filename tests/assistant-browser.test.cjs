@@ -3,7 +3,7 @@ const assert = require("node:assert/strict"),
   fs = require("node:fs"),
   path = require("node:path"),
   http = require("node:http");
-const { chromium } = require("playwright");
+const { chromium, devices } = require("playwright");
 const root = path.resolve(__dirname, "..");
 const mime = {
   ".html": "text/html",
@@ -92,6 +92,18 @@ async function run() {
       };
       appState.invoices.push(inv);
       appState.ledgerEntries.push(EvergreenLedger.fromDocument("Invoice", inv));
+      // Repeated quality warnings must not flood each answer or push the composer away.
+      for (let i = 0; i < 16; i++) {
+        appState.invoices.push({
+          ...inv,
+          id: "QUALITY-" + i,
+          invNo: "QUALITY-" + i,
+          dueDate: undefined,
+          totalNet: 0,
+          totalVat: 0,
+          totalGross: 0,
+        });
+      }
       EvergreenPayments.recordPayment(appState, {
         id: "ASSISTANT-PAY",
         documentType: "Invoice",
@@ -125,6 +137,78 @@ async function run() {
       await page.locator("#assistantInsights").textContent(),
       /£100.00.*£20.00.*£80.00.*£80.00/,
     );
+    assert.equal(
+      await page.locator("#assistantAlerts").getAttribute("open"),
+      null,
+    );
+    assert.equal(await page.locator("#assistantAlertsList li").count(), 16);
+    assert.match(
+      await page.locator("#assistantAlertsSummary").textContent(),
+      /Data Quality Alerts \(16\)/,
+    );
+    assert.equal(
+      await page
+        .locator("#assistantInsightsNote")
+        .textContent()
+        .then((text) => text.includes("No due date")),
+      false,
+    );
+    async function composerVisible() {
+      await page.waitForFunction(() => {
+        const viewport = window.visualViewport;
+        const top = viewport?.offsetTop || 0,
+          bottom = top + (viewport?.height || innerHeight);
+        const input = document
+          .getElementById("assistantQuestion")
+          .getBoundingClientRect();
+        const button = document
+          .getElementById("assistantSend")
+          .getBoundingClientRect();
+        const pane = document
+          .getElementById("assistantScroll")
+          .getBoundingClientRect();
+        const dock = document
+          .querySelector(".assistant-input-dock")
+          .getBoundingClientRect();
+        const navHeight = document
+          .querySelector(".mobile-bottom-nav")
+          .getBoundingClientRect().height;
+        return (
+          input.top >= top &&
+          button.top >= top &&
+          input.bottom <= bottom &&
+          button.bottom <= bottom &&
+          pane.height > 60 &&
+          pane.bottom <= input.top &&
+          Math.abs(dock.bottom - (bottom - navHeight - 8)) < 2
+        );
+      });
+      assert.equal(
+        await page.evaluate(() => window.scrollY),
+        0,
+        "Only the assistant pane should scroll",
+      );
+    }
+    async function answerStartVisible() {
+      assert.equal(
+        await page.evaluate(() => {
+          const pane = document
+            .getElementById("assistantScroll")
+            .getBoundingClientRect();
+          const heading = [...document.querySelectorAll(".assistant-reply h3")]
+            .at(-1)
+            .getBoundingClientRect();
+          return heading.top >= pane.top && heading.bottom <= pane.bottom;
+        }),
+        true,
+        "New answer should show its heading, not just its ending",
+      );
+    }
+    await composerVisible();
+    await page.locator("#assistantAlertsSummary").click();
+    assert.equal(await page.locator("#assistantAlertsList").isVisible(), true);
+    await composerVisible();
+    await page.locator("#assistantAlertsSummary").click();
     const requestCount = requests.length;
     async function ask(question) {
       await page.locator("#assistantQuestion").fill(question);
@@ -134,6 +218,8 @@ async function run() {
           document.getElementById("assistantStatus").textContent ===
           "Answered on this device.",
       );
+      await composerVisible();
+      await answerStartVisible();
       return page.locator(".assistant-reply").last().textContent();
     }
     await page
@@ -167,6 +253,30 @@ async function run() {
       await ask("Show my estimated VAT position"),
       /not an HMRC-verified/,
     );
+    assert.equal(
+      await page.locator("#assistantMessages .assistant-warning").count(),
+      0,
+    );
+    assert.equal(
+      await page.locator("#assistantAlertsList li").count(),
+      16,
+      "Repeated answers must not duplicate alerts",
+    );
+    await page.setViewportSize({ width: 1366, height: 620 });
+    await composerVisible();
+    await ask("profit this month");
+    const composerBeforeScroll = await page
+      .locator("#assistantForm")
+      .boundingBox();
+    await page.evaluate(() => {
+      document.getElementById("assistantScroll").scrollTop = 0;
+    });
+    await composerVisible();
+    assert.deepEqual(
+      await page.locator("#assistantForm").boundingBox(),
+      composerBeforeScroll,
+    );
+    await page.setViewportSize({ width: 1440, height: 1000 });
     assert.equal(
       requests.length,
       requestCount,
@@ -243,6 +353,61 @@ async function run() {
       true,
       "Mobile workspace must not overflow horizontally",
     );
+    await composerVisible();
+    await page.locator("#assistantQuestion").focus();
+    // Emulate Android's visual viewport shrinking while the layout viewport stays tall.
+    await page.evaluate(() => {
+      window.testNativeViewport = window.visualViewport;
+      Object.defineProperty(window, "visualViewport", {
+        configurable: true,
+        value: { height: 430, offsetTop: 0 },
+      });
+      window.dispatchEvent(new Event("resize"));
+    });
+    await composerVisible();
+    assert.equal(await page.locator(".mobile-bottom-nav").isVisible(), false);
+    await ask("profit this month");
+    await page.screenshot({
+      path: path.join(root, "test-results/assistant-mobile-keyboard.png"),
+    });
+    await page.evaluate(() => {
+      window.visualViewport.offsetTop = 120;
+      window.visualViewport.height = 330;
+      window.dispatchEvent(new Event("resize"));
+    });
+    await composerVisible();
+    await ask("Show my estimated VAT position");
+    await page.evaluate(() => {
+      Object.defineProperty(window, "visualViewport", {
+        configurable: true,
+        value: window.testNativeViewport,
+      });
+      delete window.testNativeViewport;
+      window.dispatchEvent(new Event("resize"));
+    });
+    await composerVisible();
+    assert.equal(await page.locator(".mobile-bottom-nav").isVisible(), true);
+    // Also cover browsers that resize the layout viewport or lack visualViewport.
+    await page.evaluate(() => {
+      window.testNativeViewport = window.visualViewport;
+      Object.defineProperty(window, "visualViewport", {
+        configurable: true,
+        value: undefined,
+      });
+    });
+    await page.setViewportSize({ width: 390, height: 430 });
+    await composerVisible();
+    await ask("profit this month");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => {
+      Object.defineProperty(window, "visualViewport", {
+        configurable: true,
+        value: window.testNativeViewport,
+      });
+      delete window.testNativeViewport;
+      window.dispatchEvent(new Event("resize"));
+    });
+    await composerVisible();
     await page.locator("#assistantQuestion").fill("cash balance");
     await page.locator("#assistantSend").click();
     await page.waitForFunction(
@@ -277,6 +442,67 @@ async function run() {
     assert.ok(rect.height >= 44);
     await page.locator("#assistantClear").click();
     assert.equal(await page.locator("#assistantMessages article").count(), 1);
+    await page.evaluate(() => switchTab("expenses"));
+    assert.equal(
+      await page.evaluate(() =>
+        document.body.classList.contains("assistant-active"),
+      ),
+      false,
+    );
+    assert.notEqual(
+      await page.evaluate(() => getComputedStyle(document.body).overflow),
+      "hidden",
+      "Other workspaces must keep normal scrolling",
+    );
+    const android = await browser.newContext({
+      ...devices["Pixel 7"],
+      storageState: await context.storageState({ indexedDB: true }),
+    });
+    const touchPage = await android.newPage();
+    touchPage.on("pageerror", (error) => errors.push(error.message));
+    touchPage.on("request", (request) => requests.push(request.url()));
+    await touchPage.goto(url, { waitUntil: "networkidle" });
+    await touchPage.waitForFunction(() =>
+      document.getElementById("storageBusy").classList.contains("hidden"),
+    );
+    await touchPage
+      .locator(".mobile-bottom-nav")
+      .getByRole("button", { name: "More" })
+      .tap();
+    await touchPage
+      .locator("#mobileSectionsModal")
+      .getByRole("button", { name: "AI Assistant", exact: true })
+      .tap();
+    assert.equal(
+      await touchPage.evaluate(() => matchMedia("(pointer: fine)").matches),
+      false,
+    );
+    await touchPage.locator("#assistantQuestion").fill("profit this month");
+    await touchPage.locator("#assistantSend").tap();
+    await touchPage.waitForFunction(
+      () =>
+        document.getElementById("assistantStatus").textContent ===
+        "Answered on this device.",
+    );
+    assert.match(
+      await touchPage.locator(".assistant-reply").last().textContent(),
+      /£80.00/,
+    );
+    assert.equal(
+      await touchPage.evaluate(() => document.activeElement.id),
+      "assistantQuestion",
+      "Touch submit should preserve typing focus",
+    );
+    await touchPage.locator("#assistantSuggestions button").first().tap();
+    await touchPage.waitForFunction(
+      () => !document.getElementById("assistantSend").disabled,
+    );
+    assert.notEqual(
+      await touchPage.evaluate(() => document.activeElement.id),
+      "assistantQuestion",
+      "Suggested questions should not automatically open the mobile keyboard",
+    );
+    await android.close();
     assert.deepEqual(errors, []);
     assert.deepEqual(
       requests.filter(
@@ -288,7 +514,7 @@ async function run() {
       [],
     );
     console.log(
-      "PASS: local assistant financial answers, insights, partial payments, context, unsupported/write requests, XSS protection, no requests or data writes, source errors, clearing, session-only history, offline reload, receipt preservation, mobile navigation/layout and dark mode.",
+      "PASS: anchored composer, deduplicated expandable quality alerts, new-answer scrolling, short desktop windows and emulated Android keyboard viewport resizing/panning; local assistant financial answers, insights, partial payments, context, unsupported/write requests, XSS protection, no requests or data writes, source errors, clearing, session-only history, offline reload, receipt preservation, mobile navigation/layout and dark mode.",
     );
   } catch (error) {
     if (page) {

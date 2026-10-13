@@ -15,6 +15,8 @@ Supported periods: **this month** (to date), **last month**, **this quarter** (c
 
 Without a period, profit, costs and VAT default to the current month to date. Customer/supplier balances, overdue invoices and cash use all records through the stated as-of date. Banking defaults to all unreconciled records through that date; an explicit period filters bank rows. Every answer shows its period or as-of date.
 
+The question box and Ask Assistant button stay anchored below the scrolling workspace. New answers scroll to their beginning. On mobile, the workspace follows the visible viewport when the keyboard opens. Repeated warnings appear once in the expandable **Data Quality Alerts** section; expanding it does not change any records.
+
 Simple follow-ups such as “And last month?” reuse the previous supported topic. Unsupported or ambiguous questions ask for clarification. Comparisons are explicitly **current month to date versus the full previous month**; these periods have different lengths. Suggestions let users ask another supported question. Unknown queries do not produce invented estimates.
 
 ## Calculation sources and limits
@@ -35,7 +37,7 @@ Financial answers show underlying amounts, calculation explanations and source r
 
 `js/assistant/data.js` reads only selected accounting fields into a detached, deeply frozen projection; attachments, receipt text, company identity details and stored conversations are excluded. `query.js` interprets questions and periods. `finance.js` calls existing accounting reports. `response.js` formats values, explanations, warnings and references. `engine.js` exposes a synchronous local read-only `answer` contract. `js/ui/assistant.js` renders results and holds conversation/topic state only in memory.
 
-There is no networking client, storage write, action dispatcher, provider key or automatic email/HMRC/ledger operation. Source names and descriptions are untrusted display data; UI output uses DOM `textContent` and never inserts record text as HTML. Questions cannot invoke ledger actions. Conversations disappear on reload or **Clear Conversation**; clearing does not remove accounting data. Service-worker v29 caches every assistant module and the updated stylesheet. Existing receipt, recurring-invoice, banking and reporting paths are preserved.
+There is no networking client, storage write, action dispatcher, provider key or automatic email/HMRC/ledger operation. Source names and descriptions are untrusted display data; UI output uses DOM `textContent` and never inserts record text as HTML. Questions cannot invoke ledger actions. Conversations disappear on reload or **Clear Conversation**; clearing does not remove accounting data. Service-worker v30 caches every assistant module and the updated stylesheet. Existing receipt, recurring-invoice, banking and reporting paths are preserved.
 
 ## Validation
 
