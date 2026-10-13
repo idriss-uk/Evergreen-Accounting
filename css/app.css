@@ -408,6 +408,53 @@ body.assistant-active #tab-assistant {
  .assistant-input-dock #assistantSend { flex: 0 0 96px; padding: 8px; font-size: 13px; }
  .assistant-input-dock #assistantQuestion { padding: 8px; }
  body.assistant-keyboard-open .mobile-bottom-nav { display: none; }
- body.assistant-keyboard-open .app-header,
- body.assistant-keyboard-open #localStorageStatus { display: none; }
+}
+
+/* V5.7.2: readable input and figures, with original references available on demand. */
+.assistant-mobile-privacy { display: none; }
+.assistant-input-dock .assistant-composer { align-items: center; }
+.assistant-input-dock #assistantQuestion {
+ box-sizing: border-box; min-height: 76px; max-height: 160px; height: 76px;
+ line-height: 24px; padding: 12px; overflow-y: hidden; scrollbar-gutter: auto;
+}
+.assistant-input-dock #assistantQuestion::placeholder { color: #66745f; opacity: 1; }
+.assistant-input-dock #assistantSend { align-self: center; }
+.assistant-basis { font-size: 12px; color: #60705e; }
+.assistant-key-figures dd { font-size: 20px; }
+.assistant-breakdown-title { font-size: 13px; font-weight: 600; margin-top: 14px; }
+.assistant-reference { grid-column: 1 / -1; min-width: 0; font-size: 12px; }
+.assistant-reference code { display: block; padding: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; color: inherit; user-select: text; }
+.assistant-methodology, .assistant-sources { margin-top: 12px; border-top: 1px solid #dce3d5; }
+.assistant-caveat { font-size: 12px; margin: 8px 0; }
+.assistant-alert-link { min-height: 44px; padding: 8px 0; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; text-align: left; }
+.assistant-message summary:focus-visible { outline: 2px solid #718355; outline-offset: 2px; border-radius: 4px; }
+.dark .assistant-basis, .dark .assistant-mobile-privacy { color: #b5c4a9; }
+.dark .assistant-input-dock #assistantQuestion::placeholder { color: #b5c4a9; }
+.dark .assistant-methodology, .dark .assistant-sources { border-color: #40543a; }
+@media (max-width:767px) {
+ .assistant-heading { flex-wrap: nowrap; gap: 8px; min-height: 28px; }
+ .assistant-heading h2 { font-size: 20px; margin: 0; white-space: nowrap; }
+ .assistant-heading .assistant-eyebrow,
+ .assistant-heading > div > p:last-child,
+ .assistant-heading .assistant-badge { display: none; }
+ .assistant-mobile-privacy { display: block; font-size: 11px; color: #556b2f; white-space: nowrap; }
+ .assistant-input-dock #assistantQuestion { min-height: 52px; height: 52px; padding: 12px 10px; }
+ .assistant-input-dock #assistantSend { min-height: 48px; }
+ body.assistant-keyboard-open #assistantForm label {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap;
+ }
+}
+@media (max-width:767px) {
+ .assistant-key-figures > div { grid-template-columns: minmax(0,1fr) auto; align-items: center; }
+ .assistant-key-figures dd { text-align: right; }
+ .dark body.assistant-active .header-brand > div:last-child > span:first-child { color: #dbe6c8; background-image: none; }
+}
+@media (max-width:767px) {
+ .assistant-message h3 { line-height: 20px; margin-bottom: 4px; }
+ .assistant-message p.assistant-period { line-height: 18px; margin: 2px 0 6px; }
+ .assistant-message p.assistant-basis { line-height: 18px; margin: 0 0 4px; }
+ .assistant-key-figures { margin: 8px 0; }
+ .assistant-key-figures > div { padding: 6px 0; }
+ .assistant-key-figures dd { line-height: 26px; }
 }

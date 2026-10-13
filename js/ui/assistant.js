@@ -99,7 +99,7 @@
     const top = Math.max(
       offset + 8,
       document.querySelector(".app-header").getBoundingClientRect().bottom +
-        (keyboard || height < 550 ? 8 : parseFloat(padding.paddingTop)),
+        (narrow || height < 550 ? 8 : parseFloat(padding.paddingTop)),
     );
     const workspace = get("tab-assistant");
     workspace.style.setProperty("--assistant-top", top + "px");
@@ -116,34 +116,126 @@
       Math.max(0, offset + height - top - navHeight - 8) + "px",
     );
     workspace.classList.toggle("assistant-compact", height < 550 || keyboard);
+    get("assistantQuestion").placeholder = narrow
+      ? "Ask a question…"
+      : "How much profit did my business make this month?";
+    resizeQuestion();
   }
   function scheduleLayout() {
     if (!layoutFrame) layoutFrame = requestAnimationFrame(updateLayout);
+  }
+  function reference(text) {
+    const full = String(text);
+    const shortened = full.replace(
+      /(?:[a-z][a-z0-9]*-)?[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi,
+      (id) =>
+        id.slice(0, id.indexOf("-") === 8 ? 8 : id.indexOf("-") + 9) +
+        "…" +
+        id.slice(-4),
+    );
+    const compact =
+      shortened.length > 160
+        ? shortened.slice(0, 100) + "…" + shortened.slice(-32)
+        : shortened;
+    if (compact === full) return element("small", full);
+    const details = element("details", "", "assistant-reference");
+    details.append(element("summary", compact), element("code", full));
+    return details;
+  }
+  function figures(rows, className) {
+    const list = element("dl", "", "assistant-figures " + className);
+    for (const row of rows) {
+      const group = element("div", "");
+      group.append(element("dt", row.label), element("dd", row.value));
+      if (row.reference) group.append(reference(row.reference));
+      list.append(group);
+    }
+    return list;
   }
   function renderAnswer(answer) {
     const node = message("reply", answer.title);
     if (answer.period)
       node.append(element("p", answer.period, "assistant-period"));
-    answer.paragraphs.forEach((text) => node.append(element("p", text)));
-    if (answer.rows.length) {
-      const list = element("dl", "", "assistant-figures");
-      for (const row of answer.rows) {
-        const group = element("div", "");
-        group.append(element("dt", row.label), element("dd", row.value));
-        if (row.reference) group.append(element("small", row.reference));
-        list.append(group);
+    const intent = answer.context?.intent;
+    if (!intent) {
+      answer.paragraphs.forEach((text) => node.append(element("p", text)));
+    } else {
+      if (["pnl", "expenses", "categories"].includes(intent))
+        node.append(
+          element(
+            "p",
+            "Recorded net amounts · Excluding VAT",
+            "assistant-basis",
+          ),
+        );
+      if (
+        ["receivables", "payables", "overdue", "bank", "summary"].includes(
+          intent,
+        ) &&
+        answer.paragraphs[0]
+      )
+        node.append(
+          element(
+            "p",
+            answer.paragraphs[0].split(". ")[0] + ".",
+            "assistant-short-answer",
+          ),
+        );
+      if (intent === "vat")
+        node.append(
+          element(
+            "p",
+            "Illustrative only — not an HMRC-verified return or a confirmed tax liability.",
+            "assistant-caveat",
+          ),
+        );
+      if (intent === "cash")
+        node.append(
+          element(
+            "p",
+            "Recorded cash, not a physical cash count or live bank balance.",
+            "assistant-caveat",
+          ),
+        );
+      if (answer.paragraphs.some((text) => text.includes("previous month (")))
+        node.append(
+          element(
+            "p",
+            "Month to date vs the full previous month; periods have different lengths.",
+            "assistant-caveat",
+          ),
+        );
+      answer.paragraphs
+        .filter((text) => text.startsWith("No matching"))
+        .forEach((text) => node.append(element("p", text)));
+      const primary = answer.rows.filter((row) => !row.reference).slice(0, 3);
+      if (primary.length)
+        node.append(figures(primary, "assistant-key-figures"));
+      const breakdown = answer.rows.filter((row) => !primary.includes(row));
+      if (breakdown.length) {
+        node.append(
+          element("h4", "Financial breakdown", "assistant-breakdown-title"),
+        );
+        node.append(figures(breakdown, "assistant-breakdown"));
       }
-      node.append(list);
+      if (answer.paragraphs.length) {
+        const details = element("details", "", "assistant-methodology");
+        details.append(element("summary", "How this was calculated"));
+        answer.paragraphs.forEach((text) => details.append(element("p", text)));
+        node.append(details);
+      }
     }
     if (answer.sources.length) {
-      const details = element("details", "");
+      const details = element("details", "", "assistant-sources");
       details.append(
         element("summary", "Sources (" + answer.sources.length + ")"),
       );
       const list = element("ul", "");
-      answer.sources
-        .slice(0, 100)
-        .forEach((source) => list.append(element("li", source)));
+      answer.sources.slice(0, 100).forEach((source) => {
+        const item = element("li", "");
+        item.append(reference(source));
+        list.append(item);
+      });
       details.append(list);
       if (answer.sources.length > 100)
         details.append(
@@ -155,10 +247,64 @@
       node.append(details);
     }
     if (answer.context) updateAlerts(answer.warnings);
+    if (answer.warnings.length) {
+      const review = element(
+        "button",
+        "Review Data Quality Alerts (" + new Set(answer.warnings).size + ")",
+        "assistant-alert-link",
+      );
+      review.type = "button";
+      review.addEventListener("click", () => {
+        // One shared section holds the latest report's alerts; retain this answer's full caveats.
+        updateAlerts(answer.warnings);
+        get("assistantAlerts").open = true;
+        showMessage(get("assistantAlerts"));
+        get("assistantAlertsSummary").focus({ preventScroll: true });
+      });
+      node.append(
+        element(
+          "p",
+          "Data quality alerts apply — review before relying on these figures.",
+          "assistant-caveat",
+        ),
+        review,
+      );
+    }
     const choices = element("div", "", "assistant-suggestions");
     addSuggestions(choices, answer.followups);
     node.append(choices);
     showMessage(node);
+  }
+  function resizeQuestion(reset = false) {
+    const input = get("assistantQuestion");
+    const style = getComputedStyle(input);
+    const minimum = parseFloat(style.minHeight) || 52;
+    const border =
+      parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+    const dock = document.querySelector(".assistant-input-dock");
+    const chrome =
+      dock.getBoundingClientRect().height -
+      input.getBoundingClientRect().height;
+    const workspace = get("tab-assistant");
+    const budget =
+      workspace.clientHeight -
+      workspace.querySelector(".assistant-heading").getBoundingClientRect()
+        .height -
+      24 -
+      chrome -
+      80;
+    const maximum = Math.max(minimum, Math.min(160, budget));
+    // Changing height never rewrites the value or selection. Start at the minimum to permit shrinkage.
+    input.style.maxHeight = maximum + "px";
+    input.style.height = minimum + "px";
+    input.style.overflowY = "hidden";
+    if (input.value)
+      input.style.height =
+        Math.min(maximum, Math.max(minimum, input.scrollHeight + border)) +
+        "px";
+    const overflow = input.value && input.scrollHeight > input.clientHeight + 1;
+    input.style.overflowY = overflow ? "auto" : "hidden";
+    if (reset || !overflow) input.scrollTop = 0;
   }
   function clear() {
     generation++;
@@ -168,6 +314,7 @@
       element("p", welcome),
     );
     get("assistantQuestion").value = "";
+    resizeQuestion(true);
     get("assistantStatus").textContent = "";
     get("assistantSend").disabled = false;
     get("assistantMessages").setAttribute("aria-busy", "false");
@@ -182,6 +329,7 @@
     userMessage.append(element("p", question));
     showMessage(userMessage);
     input.value = "";
+    resizeQuestion(true);
     get("assistantSend").disabled = true;
     get("assistantStatus").textContent = "Checking your local records…";
     get("assistantMessages").setAttribute("aria-busy", "true");
@@ -231,6 +379,9 @@
       window.addEventListener("resize", scheduleLayout);
       window.visualViewport?.addEventListener("resize", scheduleLayout);
       window.visualViewport?.addEventListener("scroll", scheduleLayout);
+      get("assistantQuestion").addEventListener("input", () =>
+        resizeQuestion(),
+      );
       get("assistantQuestion").addEventListener("focus", scheduleLayout);
       get("assistantQuestion").addEventListener("blur", scheduleLayout);
       addSuggestions(get("assistantSuggestions"), suggestions);
