@@ -368,3 +368,46 @@ body {
  .assistant-figures > div { grid-template-columns:minmax(0,1fr); }
  .assistant-figures dd { text-align:left; }
 }
+
+/* Keep the composer outside the only scrolling pane in the assistant workspace. */
+body.assistant-active { overflow: hidden; }
+body.assistant-active #tab-assistant {
+ position: fixed;
+ top: var(--assistant-top, 100px);
+ left: var(--assistant-left, 16px);
+ width: var(--assistant-width, calc(100% - 32px));
+ height: var(--assistant-height, calc(100dvh - 120px));
+ display: grid;
+ grid-template-rows: auto minmax(0, 1fr) auto;
+ gap: 12px;
+ min-height: 0;
+}
+.assistant-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; overflow-anchor: none; border-radius: 18px; }
+.assistant-scroll .assistant-insights { margin-top: 0; }
+.assistant-scroll .assistant-chat { margin-top: 16px; }
+.assistant-scroll .assistant-messages { max-height: none; overflow: visible; }
+.assistant-input-dock { padding: 12px 16px; border: 1px solid #dce3d5; border-radius: 16px; background: #fff; box-shadow: 0 -4px 16px rgba(36,48,32,.04); }
+.assistant-input-dock #assistantForm { margin-top: 0; }
+.assistant-input-dock #assistantStatus { min-height: 18px; margin: 6px 0 0; }
+.assistant-input-dock #assistantQuestion { resize: none; max-height: 90px; }
+.assistant-alerts { margin: 12px 0; border: 1px solid #d7dfcc; border-radius: 12px; padding: 0 12px; background: #f5f7f0; font-size: 12px; }
+.assistant-alerts summary { cursor: pointer; min-height: 44px; padding: 12px 0; font-weight: 600; }
+.assistant-alerts ul { padding-bottom: 12px; }
+.assistant-alerts li + li { margin-top: 10px; }
+.assistant-scroll:focus-visible, .assistant-alerts summary:focus-visible { outline: 2px solid #718355; outline-offset: -2px; }
+.dark .assistant-input-dock { background: #1c291d; border-color: #40543a; }
+.dark .assistant-alerts { background: #243020; border-color: #40543a; }
+.assistant-compact .assistant-heading { gap: 4px; }
+.assistant-compact .assistant-heading h2 { font-size: 20px; margin: 0; }
+.assistant-compact .assistant-eyebrow,
+.assistant-compact .assistant-heading > div > p:last-child,
+.assistant-compact .assistant-badge { display: none; }
+@media (max-width:767px) {
+ .assistant-input-dock { padding: 10px 12px max(10px, env(safe-area-inset-bottom)); }
+ .assistant-input-dock .assistant-composer { flex-direction: row; gap: 8px; }
+ .assistant-input-dock #assistantSend { flex: 0 0 96px; padding: 8px; font-size: 13px; }
+ .assistant-input-dock #assistantQuestion { padding: 8px; }
+ body.assistant-keyboard-open .mobile-bottom-nav { display: none; }
+ body.assistant-keyboard-open .app-header,
+ body.assistant-keyboard-open #localStorageStatus { display: none; }
+}

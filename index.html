@@ -8,7 +8,7 @@
     <meta name="description" content="Evergreen Accounting is a local-first UK business accounting app for sales, purchases, expenses, banking, VAT and tax workflows.">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="assets/evergreen-icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="css/app.css?v=assistant-1">
+    <link rel="stylesheet" href="css/app.css?v=assistant-layout-2">
     <!-- Local styles and fonts, available offline -->
     <link rel="stylesheet" href="assets/vendor/utilities.css?v=automation-1">
     <link rel="stylesheet" href="assets/vendor/inter-5.2.5.css">
@@ -233,11 +233,16 @@
 
             <section id="tab-assistant" class="tab-content hidden assistant-workspace" aria-labelledby="assistantTitle">
   <div class="assistant-heading"><div><p class="assistant-eyebrow">YOUR BUSINESS, EXPLAINED</p><h2 id="assistantTitle">AI Assistant</h2><p>Local Business Assistant · Rule-based answers from your recorded accounts.</p></div><span class="assistant-badge">On this device · Read-only</span></div>
+  <div id="assistantScroll" class="assistant-scroll" tabindex="0" role="region" aria-label="Business insights and conversation">
   <section class="assistant-insights" aria-labelledby="assistantInsightsTitle"><h3 id="assistantInsightsTitle">Business Insights</h3><p id="assistantInsightsPeriod" class="assistant-period"></p><div id="assistantInsights" class="assistant-card-grid"></div><p id="assistantInsightsNote" class="assistant-note"></p></section>
   <div class="assistant-chat"><div class="assistant-chat-heading"><h3>Ask about your business</h3><button id="assistantClear" type="button">Clear Conversation</button></div>
     <p class="assistant-note">Questions and records stay on this device. Conversation history lasts until you clear it or reload. No external AI service is connected.</p>
     <div id="assistantSuggestions" class="assistant-suggestions" aria-label="Suggested questions"></div>
+    <details id="assistantAlerts" class="assistant-alerts" hidden><summary id="assistantAlertsSummary">Data Quality Alerts</summary><ul id="assistantAlertsList"></ul></details>
     <div id="assistantMessages" class="assistant-messages" role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation"></div>
+  </div>
+  </div>
+  <div class="assistant-input-dock">
     <form id="assistantForm"><label for="assistantQuestion">Your question</label><div class="assistant-composer"><textarea id="assistantQuestion" rows="2" maxlength="1000" placeholder="How much profit did my business make this month?" required></textarea><button id="assistantSend" type="submit">Ask assistant</button></div></form>
     <p id="assistantStatus" role="status" class="assistant-note"></p>
   </div>
@@ -1779,6 +1784,9 @@
   button.classList.add('text-slate-600','dark:text-slate-300','hover:bg-slate-100','dark:hover:bg-slate-800');
  });
  target.classList.remove('hidden');
+ if (tabId==='assistant') window.scrollTo({top:0,behavior:'instant'});
+ document.body.classList.toggle('assistant-active',tabId==='assistant');
+ if (tabId!=='assistant') document.body.classList.remove('assistant-keyboard-open');
  const button=document.getElementById('tabBtn-'+tabId);
  if(button) {button.classList.add('active-tab');button.setAttribute('aria-current','page');}
  const titles={assistant:'AI Assistant',automation:'Business Automation',dashboard:'Dashboard',sales:'Sales & Credit Notes',purchases:'Purchases & Debit Notes',contacts:'Customers & Suppliers',expenses:'Expenses & Receipts',cash:'Cash on Hand',bank:'Bank Reconciliation',mtd:'MTD VAT',tax:'UK Tax & Payroll',reports:'Reports',settingsTab:'Settings & Audit'};
@@ -3225,7 +3233,7 @@ async function removeSelectedBankRows() {
 <script src="js/assistant/finance.js?v=assistant-1"></script>
 <script src="js/assistant/response.js?v=assistant-1"></script>
 <script src="js/assistant/engine.js?v=assistant-1"></script>
-<script src="js/ui/assistant.js?v=assistant-1"></script>
+<script src="js/ui/assistant.js?v=assistant-layout-2"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
